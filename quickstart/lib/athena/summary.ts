@@ -15,12 +15,26 @@ function formatDuration(ms: number): string {
  * chips during the session, so the document can never contradict what they saw.
  * It is also one less thing that can fail at the end of a demo.
  */
-export function renderSummary(
-  session: AthenaSession,
-  topics: Topic[],
-  transcript: TranscriptTurn[],
-  durationMs: number,
-): string {
+/**
+ * The five outcome groups, and the order they should be revised in.
+ *
+ * Shared so the on-screen map and the downloadable file can never disagree
+ * about what a topic's outcome was — they are the same session, told twice.
+ *
+ * `revisionOrder` is worst-first: outright wrong, then shaky, then recovered
+ * (right on a second pass is not yet solid), then whatever the session never
+ * reached.
+ */
+export interface TopicGroups {
+  strong: Topic[];
+  recovered: Topic[];
+  shaky: Topic[];
+  weak: Topic[];
+  untouched: Topic[];
+  revisionOrder: Topic[];
+}
+
+export function groupTopics(topics: Topic[]): TopicGroups {
   const strong = topics.filter((t) => t.status === 'correct' && !t.redeemed);
   const recovered = topics.filter((t) => t.redeemed);
   const shaky = topics.filter((t) => t.status === 'partial');
@@ -28,6 +42,25 @@ export function renderSummary(
   const untouched = topics.filter(
     (t) => t.status === 'unattempted' || t.status === 'active',
   );
+
+  return {
+    strong,
+    recovered,
+    shaky,
+    weak,
+    untouched,
+    revisionOrder: [...weak, ...shaky, ...recovered, ...untouched],
+  };
+}
+
+export function renderSummary(
+  session: AthenaSession,
+  topics: Topic[],
+  transcript: TranscriptTurn[],
+  durationMs: number,
+): string {
+  const { strong, recovered, shaky, weak, untouched, revisionOrder } =
+    groupTopics(topics);
 
   const date = new Date(session.createdAt).toLocaleString();
   const lines: string[] = [];
@@ -90,7 +123,7 @@ export function renderSummary(
 
   lines.push('## Suggested revision order');
   lines.push('');
-  const order = [...weak, ...shaky, ...recovered, ...untouched];
+  const order = revisionOrder;
   if (order.length === 0) {
     lines.push('Re-run the viva on a harder passage — this one is done.');
   } else {

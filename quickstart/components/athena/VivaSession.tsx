@@ -269,6 +269,58 @@ export default function VivaSession({
   }, [remoteUsers, agentUID]);
   useClientEvent(client, 'connection-state-change', (state) => setConnectionState(state));
 
+  /**
+   * RTM health.
+   *
+   * Voice and text arrive over two different connections: audio on RTC, and
+   * transcripts, agent state and control payloads on RTM. When RTM fails, the
+   * viva looks alive — Athena is audibly speaking — while the transcript stays
+   * empty and no chip ever moves, with nothing on screen to explain why. Both
+   * signals below exist to make that state legible instead of baffling.
+   */
+  const [rtmDown, setRtmDown] = useState<string | null>(null);
+  useEffect(() => {
+    const onLinkState = (event: {
+      currentState: string;
+      reasonCode?: string;
+    }) => {
+      if (event.currentState === 'CONNECTED') {
+        setRtmDown(null);
+      } else if (
+        event.currentState === 'FAILED' ||
+        event.currentState === 'SUSPENDED' ||
+        event.currentState === 'DISCONNECTED'
+      ) {
+        setRtmDown(event.reasonCode ?? event.currentState);
+      }
+    };
+
+    // The typings expose this through an event map; the structural shape above
+    // is all this component needs from it.
+    const client = rtmClient as unknown as {
+      addEventListener: (name: string, fn: typeof onLinkState) => void;
+      removeEventListener: (name: string, fn: typeof onLinkState) => void;
+    };
+    client.addEventListener('linkState', onLinkState);
+    return () => client.removeEventListener('linkState', onLinkState);
+  }, [rtmClient]);
+
+  /**
+   * Silence watchdog: the agent is in the channel and the toolkit is
+   * subscribed, but nothing has arrived over RTM. Mirrors the toolkit's own
+   * 15s console warning, which the student never sees.
+   */
+  const [rtmSilent, setRtmSilent] = useState(false);
+  useEffect(() => {
+    if (!aiReady || !isAgentConnected) return;
+    if (rawTranscript.length > 0 || agentState) {
+      setRtmSilent(false);
+      return;
+    }
+    const id = setTimeout(() => setRtmSilent(true), 15000);
+    return () => clearTimeout(id);
+  }, [aiReady, isAgentConnected, rawTranscript.length, agentState]);
+
   // ── Kick off the viva ────────────────────────────────────────────────────
   /**
    * The engine speaks a fixed greeting on join, but a fixed string cannot carry
@@ -583,6 +635,33 @@ export default function VivaSession({
           </ul>
         )}
       </section>
+
+      {(rtmDown || rtmSilent) && (
+        <div
+          role="alert"
+          className="shrink-0 rounded-md border px-2.5 py-2 text-[11px]"
+          style={{
+            borderColor: 'var(--athena-amber)',
+            background: 'var(--athena-amber-dim)',
+            color: 'var(--athena-amber)',
+          }}
+        >
+          <p className="mb-2 leading-snug">
+            Athena&apos;s voice is coming through, but her transcript is not.
+            Agora&apos;s messaging connection did not establish
+            {rtmDown ? ` (${rtmDown})` : ''}, so the map and captions cannot
+            update. Restarting usually clears it.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-md border px-2.5 py-1.5 text-[11px]"
+            style={{ borderColor: 'var(--athena-amber)' }}
+          >
+            Restart the viva
+          </button>
+        </div>
+      )}
 
       {micError && (
         <div

@@ -110,6 +110,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 | **Client → agent text injection** | Typed answers and the "go back over my weak topics" steer both push text into the live session via `sendText()`. |
 | **Teaching on request** | Saying "I don't know" gets a short explanation drawn from the passage and a check question — not a refusal. The topic is marked wrong, then re-asked later. |
 | **Two-phase session** | Athena orients first — what the material covers, what she would examine — and answers whatever you ask before the viva begins. Nothing lands on the map until you choose to start. |
+| **Outcome map** | The session ends with the same chips resolved into groups, a proportion meter, and an ordered "focus next" list. The markdown file is the record; the map is what you read. |
 
 ---
 

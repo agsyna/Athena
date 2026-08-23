@@ -532,3 +532,16 @@ body {
     transition: none !important;
   }
 }
+
+/*
+ * The out-of-scope notice under the understanding map.
+ *
+ * It appears mid-session, in a card the student is already watching, so it
+ * eases in rather than snapping — a hard pop reads as an error state, and this
+ * is not one. It is Athena declining to guess, which is a good thing to see.
+ */
+.athena-outside {
+  animation: fade-up 260ms ease-out both;
+  border-top: 1px solid var(--athena-border);
+  padding-top: 0.5rem;
+}

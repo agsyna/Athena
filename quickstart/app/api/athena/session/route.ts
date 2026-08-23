@@ -18,7 +18,12 @@ export async function OPTIONS(request: NextRequest) {
  * itself never has to survive a URL length limit.
  */
 export async function POST(request: NextRequest) {
-  let body: { passage?: string; sourceTitle?: string; sourceUrl?: string };
+  let body: {
+    passage?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
+    focusTopics?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -45,15 +50,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Revision sessions name the topics that sent the student back here. Capped
+  // at six: past that Athena is being handed a syllabus, not a revision list.
+  const focusTopics = Array.isArray(body.focusTopics)
+    ? body.focusTopics
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+        .map((t) => t.trim().slice(0, 60))
+        .slice(0, 6)
+    : undefined;
+
   const session = createSession({
     passage,
     sourceTitle: body.sourceTitle?.slice(0, 200),
     sourceUrl: body.sourceUrl?.slice(0, 500),
+    focusTopics,
   });
 
   return withCors(request, {
     session_id: session.id,
     passage_chars: passage.length,
+    focus_topics: session.focusTopics ?? [],
   });
 }
 

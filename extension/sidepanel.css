@@ -10,6 +10,7 @@
   --text-dim: #7d8299;
   --blue: #4d8dff;
   --amber: #f5a623;
+  --success: #2fd07a;
   --danger: #ff5c5c;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -295,4 +296,217 @@ body {
   .orb::after {
     animation: none;
   }
+}
+
+/* ── Revision ────────────────────────────────────────────────────────────── */
+
+.head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* A quiet secondary action in the header — present, never competing with
+   "Start viva" for the eye. */
+.chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip-button:hover {
+  color: var(--text);
+  border-color: var(--blue);
+}
+
+/* Count of topics still needing work. Amber because it is a nudge, not an
+   error — nothing has gone wrong, there is just something left to do. */
+.badge {
+  min-width: 15px;
+  padding: 1px 4px;
+  font-size: 9px;
+  text-align: center;
+  color: #08090d;
+  background: var(--amber);
+  border-radius: 999px;
+}
+
+.badge[hidden] {
+  display: none;
+}
+
+#revision {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 14px;
+  overflow: hidden;
+}
+
+.controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.select {
+  width: 100%;
+  padding: 7px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/*
+ * Filters are toggles, not a segmented control: the student is as likely to
+ * want "the two I am bad at" as a single status, and with none pressed the
+ * list shows everything.
+ */
+.filter {
+  padding: 4px 9px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.filter:hover {
+  color: var(--text);
+}
+
+.filter[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--surface-raised);
+  border-color: var(--blue);
+}
+
+.topics {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.topic {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.topic + .topic {
+  margin-top: 5px;
+}
+
+.topic:hover {
+  border-color: var(--blue);
+}
+
+.topic.is-selected {
+  border-color: var(--blue);
+  background: var(--surface-raised);
+}
+
+.topic input {
+  margin: 2px 0 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.topic-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.topic-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.topic[data-status="wrong"] .topic-dot,
+.topic[data-status="partial"] .topic-dot {
+  background: var(--amber);
+}
+
+.topic[data-status="correct"] .topic-dot {
+  background: var(--success);
+}
+
+.topic-meta {
+  margin: 3px 0 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* The recovery mark, carried over from the live understanding map so the same
+   event reads the same way in both places. */
+.topic-redeemed {
+  color: var(--success);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link.is-quiet {
+  color: var(--text-dim);
+}
+
+.link.is-quiet:hover {
+  color: var(--danger);
 }

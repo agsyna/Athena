@@ -73,7 +73,11 @@ export async function POST(request: NextRequest) {
 
     const agent = new Agent({
       client,
-      instructions: buildAthenaPrompt(session.passage, session.sourceTitle),
+      instructions: buildAthenaPrompt(
+        session.passage,
+        session.sourceTitle,
+        session.focusTopics,
+      ),
       greeting: ATHENA_GREETING,
       failureMessage: 'Give me one moment.',
       maxHistory: 50,

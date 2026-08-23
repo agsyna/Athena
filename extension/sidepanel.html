@@ -10,7 +10,12 @@
     <!-- Compose: paste or edit the passage to be examined on. -->
     <section id="compose" class="view" hidden>
       <header class="head">
-        <div class="brand">ATHENA</div>
+        <div class="head-row">
+          <div class="brand">ATHENA</div>
+          <button id="open-revision" class="chip-button" type="button">
+            Revision <span id="revision-badge" class="badge" hidden></span>
+          </button>
+        </div>
         <p class="sub">A spoken viva on whatever you're studying.</p>
       </header>
 
@@ -76,6 +81,73 @@
       </div>
     </section>
 
+    <!--
+      Revision: everything the student has ever been examined on, in one list.
+
+      A single viva ends in a summary of that viva. This is the view across all
+      of them — the thing that answers "what am I still bad at" rather than "how
+      did that session go".
+    -->
+    <section id="revision" class="view" hidden>
+      <header class="head">
+        <div class="head-row">
+          <div class="brand">REVISION</div>
+          <button id="revision-back" class="chip-button" type="button">Back</button>
+        </div>
+        <p id="revision-sub" class="sub"></p>
+      </header>
+
+      <div class="controls">
+        <label class="label" for="revision-sort">Order</label>
+        <select id="revision-sort" class="select">
+          <option value="weakest">Weakest first</option>
+          <option value="recent">Most recent</option>
+          <option value="examined">Most examined</option>
+          <option value="alpha">A–Z</option>
+        </select>
+
+        <div class="label">Show</div>
+        <div id="revision-filters" class="filters">
+          <button class="filter" type="button" data-status="wrong" aria-pressed="false">
+            Needs work
+          </button>
+          <button class="filter" type="button" data-status="partial" aria-pressed="false">
+            Partly there
+          </button>
+          <button class="filter" type="button" data-status="correct" aria-pressed="false">
+            Understood
+          </button>
+          <button class="filter" type="button" data-status="unattempted" aria-pressed="false">
+            Not covered
+          </button>
+        </div>
+      </div>
+
+      <ul id="revision-list" class="topics"></ul>
+
+      <p id="revision-empty" class="fine" hidden>
+        Nothing yet. Finish a viva and every topic Athena examined you on shows
+        up here.
+      </p>
+
+      <div class="actions">
+        <button id="revision-revise" class="primary" type="button" disabled>
+          Revise selected
+        </button>
+        <div class="row">
+          <button id="revision-export" class="link" type="button">
+            Export as .md
+          </button>
+          <button id="revision-clear" class="link is-quiet" type="button">
+            Clear history
+          </button>
+        </div>
+      </div>
+
+      <p id="revision-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <script src="revision.js"></script>
     <script src="sidepanel.js"></script>
   </body>
 </html>

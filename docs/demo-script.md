@@ -34,10 +34,14 @@ Click **Start viva**. Athena opens in her own window — drag it beside the note
 
 *If the highlight doesn't land — it's best-effort, Chrome collapses selections sometimes — just paste into the box. Pasting is the primary input, so this is not a visible failure.*
 
-**3 · The map appears (15s)**
-Athena greets, then takes her first turn. Four to six grey chips appear.
+**3 · She orients you (20s)**
+Athena summarises what the material covers, names the areas she would examine, and asks whether you want to be examined or want anything explained first.
 
-> "She's read it and picked what's worth examining. Nothing hard-coded — those come from what I highlighted."
+> "She read it and told me what I'm dealing with. She hasn't started testing me — that's my call."
+
+Say "go ahead, examine me." Four to six grey chips appear.
+
+> "Those topics came from what I pasted. Nothing hard-coded."
 
 **4 · Answer well (30s)**
 Answer the first question properly. Watch the chip go green.

@@ -256,7 +256,7 @@ export default function AthenaViva({
               ATHENA
             </h1>
             <p className="mt-1 text-[11px] text-[var(--athena-text-dim)]">
-              A spoken viva on what you highlighted.
+              Athena reads this, tells you what it covers, then examines you on it.
             </p>
           </header>
 
@@ -272,8 +272,8 @@ export default function AthenaViva({
           </section>
 
           <ul className="flex flex-col gap-1.5 text-[11px] leading-snug text-[var(--athena-text-dim)]">
-            <li>· Athena asks; you answer out loud.</li>
-            <li>· Cut in whenever you want — she will stop and listen.</li>
+            <li>· She starts by summarising it and asking what you want.</li>
+            <li>· Answer out loud, or type. Cut in whenever you like.</li>
             <li>· The chips track what you have and have not got.</li>
           </ul>
 

@@ -89,7 +89,7 @@ export function UnderstandingMap({ topics }: { topics: Topic[] }) {
 
       {topics.length === 0 ? (
         <p className="text-xs text-[var(--athena-text-dim)]">
-          Athena is reading your passage…
+          Filled in once the examination starts.
         </p>
       ) : (
         <div className="flex flex-wrap gap-1.5">

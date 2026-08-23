@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Revision notes — Relational database internals</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0 auto;
+        max-width: 46rem;
+        padding: 3rem 1.5rem 6rem;
+        font: 16px/1.65 Georgia, "Times New Roman", serif;
+        color: #1a1c22;
+        background: #fbfaf7;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6e8ee; background: #14151a; }
+        hr { border-color: #2a2d38; }
+        .meta { color: #8a8fa3; }
+      }
+      h1 { font-size: 1.7rem; line-height: 1.25; margin-bottom: .3rem; }
+      h2 { font-size: 1.15rem; margin-top: 2.2rem; }
+      .meta {
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #6b7080;
+        margin-top: 0;
+      }
+      hr { border: 0; border-top: 1px solid #ddd9d0; margin: 2.5rem 0; }
+      .tip {
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        padding: .8rem 1rem;
+        border-left: 3px solid #4d8dff;
+        background: rgba(77, 141, 255, .08);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Relational database internals</h1>
+    <p class="meta">Revision notes · week 7</p>
+
+    <p class="tip">
+      Highlight one of the sections below, then click the Athena icon in the
+      toolbar to be examined on it out loud.
+    </p>
+
+    <hr />
+
+    <h2>Normalization</h2>
+    <p>
+      Normalization is the process of structuring a relational schema to reduce
+      redundancy and prevent update anomalies. First normal form requires every
+      column value to be atomic — no repeating groups, no lists packed into a
+      single field. Second normal form additionally requires that every non-key
+      attribute be fully functionally dependent on the whole primary key, which
+      only bites when the key is composite. Third normal form removes transitive
+      dependencies: a non-key attribute must not determine another non-key
+      attribute. Boyce-Codd normal form tightens this further, requiring that
+      every determinant be a candidate key. Normalizing too aggressively trades
+      write-side integrity for read-side join cost, which is why reporting
+      schemas are often deliberately denormalized.
+    </p>
+
+    <h2>Indexing</h2>
+    <p>
+      An index is an auxiliary structure that lets the engine locate rows without
+      scanning the whole table. The dominant implementation is the B+ tree, where
+      internal nodes hold only keys and all records live in the leaves, which are
+      linked to make range scans cheap. Every index accelerates reads but taxes
+      writes, since each insert, update, and delete must maintain the index as
+      well as the table. A composite index on (a, b) can serve a query filtering
+      on a alone, but not one filtering on b alone — the leftmost-prefix rule. A
+      covering index contains every column a query needs, so the engine can
+      answer from the index and never touch the heap.
+    </p>
+
+    <h2>Transactions and isolation</h2>
+    <p>
+      A transaction is a unit of work that is atomic, consistent, isolated, and
+      durable. Isolation levels trade correctness for concurrency. Read
+      uncommitted permits dirty reads. Read committed prevents those but still
+      allows non-repeatable reads, where the same row changes between two reads
+      in one transaction. Repeatable read prevents that but can still admit
+      phantoms, where new rows matching a predicate appear. Serializable forbids
+      all three, at the cost of throughput. Most engines implement the middle
+      levels with multi-version concurrency control, keeping several versions of
+      a row so readers never block writers.
+    </p>
+
+    <h2>Join strategies</h2>
+    <p>
+      The planner chooses between three main physical joins. A nested loop join
+      scans the outer relation and probes the inner one per row — excellent when
+      the outer side is tiny and the inner side is indexed on the join key. A
+      hash join builds an in-memory hash table over the smaller relation and
+      streams the larger one past it, which is the usual choice for large
+      unsorted equijoins but degrades badly if the build side spills to disk. A
+      merge join requires both inputs sorted on the join key and then walks them
+      in lockstep, which is nearly free when an index already provides the
+      ordering. Only hash join is restricted to equality predicates.
+    </p>
+
+    <h2>Query planning</h2>
+    <p>
+      The optimizer converts a declarative query into a physical plan by
+      estimating the cost of alternatives. Costs are driven by statistics —
+      row counts, column histograms, distinct-value estimates — which are
+      sampled and therefore stale between refreshes. Selectivity estimation
+      errors compound multiplicatively through a join tree, which is why a plan
+      that is wrong at the leaves is usually catastrophically wrong at the root.
+      This is the single most common cause of a query that was fast last week
+      and is slow today.
+    </p>
+  </body>
+</html>

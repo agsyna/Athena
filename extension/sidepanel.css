@@ -1,0 +1,95 @@
+/* Athena side panel shell. Mirrors the viva surface's tokens so the handoff
+   between this shell and the embedded app is invisible. */
+
+:root {
+  --bg: #0a0b10;
+  --surface: #14151d;
+  --border: #262835;
+  --text: #e8eaf0;
+  --text-dim: #7d8299;
+  --blue: #4d8dff;
+  --danger: #ff5c5c;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+.state {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.state[hidden] {
+  display: none;
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detail {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  max-width: 30ch;
+}
+
+.state.is-error .message {
+  color: var(--danger);
+}
+
+.button {
+  margin-top: 4px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--blue);
+}
+
+#viva {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+#viva[hidden] {
+  display: none;
+}

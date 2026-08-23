@@ -18,45 +18,41 @@ export interface ParsedTurn {
 }
 
 /**
- * Finds the last balanced `{...}` run in `text`.
+ * Finds the control payload at the end of an agent turn.
  *
- * A naive `lastIndexOf('{')` breaks on nested objects (`mark` is nested), and a
- * regex cannot balance braces at all. This walks the string tracking JSON string
- * state so a brace inside a topic name can never terminate the scan early.
+ * Works backwards from the last `}` and asks JSON.parse to adjudicate each
+ * candidate `{`. Deliberately does not try to track string state across the
+ * whole turn: everything before the payload is spoken prose, and a single
+ * unbalanced quote in it — which a model will happily produce — flips the
+ * parity and hides the payload completely. JSON.parse is the only thing that
+ * actually knows where valid JSON begins.
  */
-function findControlSpan(text: string): { start: number; end: number } | null {
-  let depth = 0;
-  let start = -1;
-  let inString = false;
-  let escaped = false;
-  let best: { start: number; end: number } | null = null;
+function findControlSpan(text: string): { start: number; end: number; value: unknown } | null {
+  const close = text.lastIndexOf('}');
+  if (close === -1) return null;
 
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
+  // Rightmost first: the payload is the last thing in the turn, so the nearest
+  // opening brace that parses is the one we want.
+  const opens: number[] = [];
+  for (let i = close - 1; i >= 0; i--) {
+    if (text[i] === '{') opens.push(i);
+    // A turn carries one small object; scanning the whole history of a long
+    // reply for brace pairs is wasted work.
+    if (opens.length >= 12) break;
+  }
 
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = true;
-    } else if (ch === '{') {
-      if (depth === 0) start = i;
-      depth++;
-    } else if (ch === '}') {
-      if (depth > 0) {
-        depth--;
-        // Keep the last complete span: the prompt asks for the object at the
-        // very end of the turn, so later wins if the model emits more than one.
-        if (depth === 0 && start !== -1) best = { start, end: i + 1 };
+  for (const open of opens) {
+    try {
+      const value: unknown = JSON.parse(text.slice(open, close + 1));
+      if (value && typeof value === 'object') {
+        return { start: open, end: close + 1, value };
       }
+    } catch {
+      // Not valid JSON from here; try an earlier brace.
     }
   }
 
-  return best;
+  return null;
 }
 
 function isControl(value: unknown): value is AthenaControl {
@@ -83,17 +79,8 @@ export function parseTurn(text: string): ParsedTurn {
   const span = findControlSpan(text);
   if (!span) return { spoken: text, control: null };
 
-  const candidate = text.slice(span.start, span.end);
-  let control: AthenaControl | null = null;
-  try {
-    const parsed: unknown = JSON.parse(candidate);
-    if (isControl(parsed)) control = parsed;
-  } catch {
-    // Not our payload (or arrived mid-stream, before the closing brace).
-    return { spoken: text, control: null };
-  }
-
-  if (!control) return { spoken: text, control: null };
+  if (!isControl(span.value)) return { spoken: text, control: null };
+  const control: AthenaControl = span.value;
 
   const spoken = (text.slice(0, span.start) + text.slice(span.end))
     .replace(/\s{2,}/g, ' ')

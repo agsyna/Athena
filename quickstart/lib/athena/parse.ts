@@ -9,6 +9,15 @@ export interface AthenaControl {
   focus?: string;
   mark?: { topic: string; result: 'correct' | 'partial' | 'wrong' };
   done?: boolean;
+  /**
+   * Named when the student asked about something the passage does not cover.
+   *
+   * Athena says so out loud rather than answering from general knowledge, but
+   * spoken words vanish. This carries the same admission to the screen, where
+   * it can be seen: she knows the edge of the material she was given, and she
+   * did not quietly guess past it.
+   */
+  outside?: string;
 }
 
 export interface ParsedTurn {
@@ -62,7 +71,8 @@ function isControl(value: unknown): value is AthenaControl {
     v.topics !== undefined ||
     v.focus !== undefined ||
     v.mark !== undefined ||
-    v.done !== undefined
+    v.done !== undefined ||
+    v.outside !== undefined
   );
 }
 

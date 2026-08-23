@@ -104,6 +104,14 @@ export default function VivaSession({
   const [ending, setEnding] = useState(false);
 
   const [topics, setTopics] = useState<Topic[]>([]);
+  /**
+   * The last thing the student asked about that the passage does not cover.
+   *
+   * Athena declines it out loud, but speech is gone the moment it is said.
+   * Keeping it here puts the refusal on screen beside the map, where the
+   * student can see that the blank space was a decision and not an oversight.
+   */
+  const [outsideAsk, setOutsideAsk] = useState<string | null>(null);
   const [rawTranscript, setRawTranscript] = useState<
     TranscriptHelperItem<Partial<UserTranscription | AgentTranscription>>[]
   >([]);
@@ -386,6 +394,7 @@ export default function VivaSession({
 
     let pending = topics;
     let changed = false;
+    let outside: string | null = null;
 
     for (const turn of agentTurns) {
       const text = typeof turn.text === 'string' ? turn.text : '';
@@ -396,6 +405,10 @@ export default function VivaSession({
       if (appliedControls.current.has(key)) continue;
       appliedControls.current.add(key);
 
+      if (typeof control.outside === 'string' && control.outside.trim()) {
+        outside = control.outside.trim().slice(0, 40);
+      }
+
       const { topics: next } = applyControl(pending, control);
       if (next !== pending) {
         pending = next;
@@ -404,6 +417,7 @@ export default function VivaSession({
     }
 
     if (changed) setTopics(pending);
+    if (outside) setOutsideAsk(outside);
     // `topics` is intentionally omitted: it is folded in via `pending`, and
     // including it would re-run this effect on its own output.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -504,6 +518,70 @@ export default function VivaSession({
       .catch(() => setPipelineError('Could not send that to Athena.'));
   }, [weakTopics, agentUID]);
 
+  /**
+   * Mirrors the map to the watch view, and collects anything a watcher asked
+   * for while it was there.
+   *
+   * One heartbeat does both jobs. Publishing on a timer rather than on every
+   * change also means a watcher who opens the page mid-session sees the map
+   * within a second instead of waiting for the next judgement to land.
+   */
+  const topicsRef = useRef(topics);
+  topicsRef.current = topics;
+  const outsideRef = useRef(outsideAsk);
+  outsideRef.current = outsideAsk;
+  /** Latches on end, so a heartbeat in flight cannot reopen a closed viva. */
+  const endedRef = useRef(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let stopped = false;
+
+    const beat = async () => {
+      if (endedRef.current) return;
+      try {
+        const res = await fetch('/api/athena/live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            topics: topicsRef.current,
+            outsideAsk: outsideRef.current ?? undefined,
+            ended: false,
+          }),
+        });
+        if (stopped || !res.ok) return;
+        const data: { nudge?: { topic: string } | null } = await res.json();
+        const topic = data.nudge?.topic;
+        if (!topic) return;
+
+        // Same injection path as the student's own "weak topics" button — a
+        // watcher steering the viva is the same kind of event, from a different
+        // pair of hands.
+        aiRef.current
+          ?.sendText(agentUID, {
+            messageType: ChatMessageType.TEXT,
+            text: `${KICKOFF_PREFIX} The student's tutor has asked you to return to "${topic}". Go back to it now and ask a different question about it than you asked before.`,
+            priority: ChatMessagePriority.INTERRUPTED,
+            responseInterruptable: true,
+          })
+          .catch(() => {
+            // A missed nudge is not worth an error card mid-viva; the watcher
+            // can press again.
+          });
+      } catch {
+        // The watch channel is a convenience. It must never break the viva.
+      }
+    };
+
+    const id = setInterval(beat, 1500);
+    void beat();
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [sessionId, agentUID]);
+
   const handleTokenWillExpire = useCallback(async () => {
     if (!joinedUID) return;
     try {
@@ -519,6 +597,7 @@ export default function VivaSession({
 
   const handleEnd = useCallback(async () => {
     setEnding(true);
+    endedRef.current = true;
 
     let markdown: string | null = null;
     let downloadUrl: string | null = null;
@@ -547,6 +626,15 @@ export default function VivaSession({
     } catch {
       error = 'Your viva is over, but the summary could not be built.';
     }
+
+    // Final publish, so a watcher's page settles on "ended" and the extension's
+    // revision history records this viva as finished rather than abandoned.
+    // Best-effort: the summary is already in hand and must not wait on it.
+    void fetch('/api/athena/live', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, topics, ended: true }),
+    }).catch(() => {});
 
     onEnd({ markdown, downloadUrl, topics, error });
   }, [sessionId, topics, visibleTurns, onEnd]);
@@ -609,7 +697,9 @@ export default function VivaSession({
         ))}
       </section>
 
-      <UnderstandingMap topics={topics} />
+      <UnderstandingMap topics={topics} outsideAsk={outsideAsk} />
+
+      <WatchLink sessionId={sessionId} />
 
       {/* Transcript */}
       <section
@@ -783,5 +873,39 @@ export default function VivaSession({
         </p>
       </footer>
     </div>
+  );
+}
+
+/**
+ * The share affordance for the watch view.
+ *
+ * Kept to one line: a tutor watching is an option, not the point of the
+ * session, and a student mid-viva should not be reading UI about it.
+ */
+function WatchLink({ sessionId }: { sessionId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = useCallback(() => {
+    const url = `${window.location.origin}/watch/${sessionId}`;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        // Clipboard can be refused; the link is still on screen to read.
+      });
+  }, [sessionId]);
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="athena-mono w-full text-left text-[10px] text-[var(--athena-text-dim)] hover:text-[var(--athena-text)]"
+      title="Copy a read-only link a tutor can watch this on"
+    >
+      {copied ? 'watch link copied' : `watch link · /watch/${sessionId}`}
+    </button>
   );
 }

@@ -64,7 +64,14 @@ function Chip({ topic }: { topic: Topic }) {
   );
 }
 
-export function UnderstandingMap({ topics }: { topics: Topic[] }) {
+export function UnderstandingMap({
+  topics,
+  outsideAsk = null,
+}: {
+  topics: Topic[];
+  /** Last thing asked about that the passage does not cover, if any. */
+  outsideAsk?: string | null;
+}) {
   const settled = topics.filter(
     (t) => t.status !== 'unattempted' && t.status !== 'active',
   ).length;
@@ -97,6 +104,13 @@ export function UnderstandingMap({ topics }: { topics: Topic[] }) {
             <Chip key={topic.name} topic={topic} />
           ))}
         </div>
+      )}
+
+      {outsideAsk && (
+        <p className="athena-outside mt-2.5 text-[11px] leading-snug text-[var(--athena-text-dim)]">
+          <span aria-hidden>◇</span> <strong>{outsideAsk}</strong> is outside
+          this passage — Athena said so rather than guessing. Not judged.
+        </p>
       )}
     </section>
   );

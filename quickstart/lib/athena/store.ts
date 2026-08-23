@@ -35,6 +35,7 @@ export function createSession(input: {
   passage: string;
   sourceTitle?: string;
   sourceUrl?: string;
+  focusTopics?: string[];
 }): AthenaSession {
   evictExpired();
   const session: AthenaSession = {
@@ -42,6 +43,7 @@ export function createSession(input: {
     passage: input.passage,
     sourceTitle: input.sourceTitle,
     sourceUrl: input.sourceUrl,
+    focusTopics: input.focusTopics?.length ? input.focusTopics : undefined,
     createdAt: Date.now(),
   };
   sessions.set(session.id, session);
@@ -55,7 +57,9 @@ export function getSession(id: string): AthenaSession | undefined {
 
 export function updateSession(
   id: string,
-  patch: Partial<Pick<AthenaSession, 'agentId' | 'channel' | 'summary'>>,
+  patch: Partial<
+    Pick<AthenaSession, 'agentId' | 'channel' | 'summary' | 'live' | 'nudge'>
+  >,
 ): AthenaSession | undefined {
   const session = sessions.get(id);
   if (!session) return undefined;

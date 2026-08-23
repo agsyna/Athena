@@ -377,6 +377,34 @@ export default function VivaSession({
     }
   }, [micEnabled, localMicrophoneTrack]);
 
+  /**
+   * Typed answers.
+   *
+   * Speech is the point of a viva, but it is not always available: a noisy
+   * room, a mis-heard technical term, or a student who would rather write.
+   * Typed input travels the same RTM path as speech, so Athena answers it the
+   * same way and it lands in the transcript and the summary identically.
+   */
+  const [typed, setTyped] = useState('');
+  const handleTypedSubmit = useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+      const text = typed.trim();
+      if (!text || !aiRef.current) return;
+      setTyped('');
+      aiRef.current
+        .sendText(agentUID, {
+          messageType: ChatMessageType.TEXT,
+          text,
+          // Typing while Athena talks is the same intent as talking over her.
+          priority: ChatMessagePriority.INTERRUPTED,
+          responseInterruptable: true,
+        })
+        .catch(() => setPipelineError('Could not send that to Athena.'));
+    },
+    [typed, agentUID],
+  );
+
   /** Barge-in from the UI, for when talking over Athena is impractical. */
   const handleInterrupt = useCallback(() => {
     aiRef.current?.interrupt(agentUID).catch(() => {
@@ -592,6 +620,29 @@ export default function VivaSession({
 
       {/* Controls */}
       <footer className="flex shrink-0 flex-col gap-2">
+        <form onSubmit={handleTypedSubmit} className="flex gap-2">
+          <label className="sr-only" htmlFor="athena-typed">
+            Type an answer instead of speaking
+          </label>
+          <input
+            id="athena-typed"
+            type="text"
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            disabled={!aiReady}
+            placeholder="Or type your answer…"
+            autoComplete="off"
+            className="athena-card min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[12px] text-[var(--athena-text)] placeholder:text-[var(--athena-text-dim)] focus:border-[var(--athena-blue)] focus:outline-none disabled:opacity-40"
+          />
+          <button
+            type="submit"
+            disabled={!aiReady || typed.trim().length === 0}
+            className="athena-card px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-blue)] disabled:opacity-40"
+          >
+            Send
+          </button>
+        </form>
+
         <div className="flex gap-2">
           <button
             type="button"

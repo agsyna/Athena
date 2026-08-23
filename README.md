@@ -25,6 +25,9 @@ Most study bots quiz you from a fixed list. Athena does three things that a quiz
 1. **She adapts mid-conversation.** A correct answer earns a harder follow-up. A partial answer keeps her on the topic with a narrower question. A wrong answer makes her move on — and come back later.
 2. **She circles back, and you watch it land.** The topic you fumbled sits amber on screen. Several minutes later Athena returns to it unprompted, reframes the question, and when you get it the chip flips green with a visible pulse. That recovery moment is the point of the product.
 3. **She admits when she can't tell.** An ambiguous answer produces a clarifying question, not a silent guess and a wrong mark.
+4. **She teaches when you ask her to.** Say "I don't know" and she explains it, then checks you followed — a study aid, not a gatekeeper. The topic still goes amber, and she comes back to it.
+
+You can answer out loud or type — typed answers travel the same path and land in the transcript and summary identically, which also makes the whole thing usable in a quiet library or a noisy room.
 
 ---
 
@@ -101,7 +104,8 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 | **Adaptive difficulty** | Correct → harder follow-up; partial → narrower question on the same topic; wrong → move on and return later. |
 | **Dynamic questioning** | Questions are generated from the student's own highlighted passage. There is no question bank. |
 | **Recovery from correction** | A wrong or partial topic revisited and answered correctly flips the chip green and is recorded as *recovered* in the summary. |
-| **Client → agent text injection** | "Go back over my weak topics" sends a steering message into the live session via `sendText()`. |
+| **Client → agent text injection** | Typed answers and the "go back over my weak topics" steer both push text into the live session via `sendText()`. |
+| **Teaching on request** | Saying "I don't know" gets a short explanation drawn from the passage and a check question — not a refusal. The topic is marked wrong, then re-asked later. |
 
 ---
 

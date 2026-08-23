@@ -75,7 +75,9 @@ function showStatus(message, detail = '', { error = false, back = false } = {}) 
 }
 
 function showViva(sessionId) {
-  const url = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}`;
+  // a=1 starts the viva immediately: the student pressed "Start viva" here, and
+  // making them press an identical button again inside the frame is friction.
+  const url = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}&a=1`;
   openTabEl.href = url;
   frameEl.src = url;
 

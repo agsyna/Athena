@@ -1,0 +1,534 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme (default). Dark tokens apply when the OS prefers dark mode. */
+:root {
+  color-scheme: light;
+
+  /* --- Agora light token set --- */
+
+  /* Backgrounds */
+  --background:       220 20% 98%;
+  --surface:          220 18% 96%;
+  --surface-elevated: 220 16% 94%;
+
+  /* Semantic surface aliases */
+  --card:             0 0% 100%;
+  --card-foreground:  220 25% 12%;
+  --popover:          0 0% 100%;
+  --popover-foreground: 220 25% 12%;
+  --muted:            220 14% 94%;
+
+  /* Borders / inputs */
+  --border:           220 13% 88%;
+  --input:            220 13% 88%;
+
+  /* Foreground */
+  --foreground:       220 25% 12%;
+  --muted-foreground: 220 10% 42%;
+
+  /* Brand — Agora cyan */
+  --primary:            194 100% 42%;
+  --primary-foreground: 220 25% 12%;
+
+  /* Secondary — quiet surface-level control */
+  --secondary:            220 14% 94%;
+  --secondary-foreground: 220 25% 12%;
+
+  /* Accent — same hue as primary */
+  --accent:            194 100% 42%;
+  --accent-foreground: 220 25% 12%;
+
+  /* Destructive — end call, error states only */
+  --destructive:            0 72% 52%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Focus ring */
+  --ring: 194 100% 42%;
+
+  /* Radius base (8px) */
+  --radius: 0.5rem;
+
+  /* Charts */
+  --chart-1: 194 100% 42%;
+  --chart-2: 220 10% 45%;
+  --chart-3: 220 10% 35%;
+  --chart-4: 0 72% 52%;
+  --chart-5: 150 50% 40%;
+
+  /* Sidebar */
+  --sidebar-background:         0 0% 100%;
+  --sidebar-foreground:         220 25% 12%;
+  --sidebar-primary:            194 100% 42%;
+  --sidebar-primary-foreground: 220 25% 12%;
+  --sidebar-accent:             220 14% 94%;
+  --sidebar-accent-foreground:  220 25% 12%;
+  --sidebar-border:             220 13% 88%;
+  --sidebar-ring:               194 100% 42%;
+
+  /*
+   * AgentVisualizer: same order as dark — cool/primary at bar bottom, soft mid, purple at top.
+   * Light: blue ≈ cyan role; dark: overridden below (cyan → soft → purple).
+   */
+  --viz-stop-1: 225 92% 50%;
+  --viz-stop-2: 220 14% 78%;
+  --viz-stop-3: 285 58% 48%;
+
+  /* Font */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    /* --- Agora dark token set --- */
+
+    --background:       220 14% 5%;
+    --surface:          220 12% 9%;
+    --surface-elevated: 220 10% 13%;
+
+    --card:             220 12% 9%;
+    --card-foreground:  220 15% 95%;
+    --popover:          220 10% 13%;
+    --popover-foreground: 220 15% 95%;
+    --muted:            220 12% 9%;
+
+    --border:           220 10% 18%;
+    --input:            220 10% 18%;
+
+    --foreground:       220 15% 95%;
+    --muted-foreground: 220 10% 50%;
+
+    --primary:            194 100% 50%;
+    --primary-foreground: 220 14% 5%;
+
+    --secondary:            220 10% 13%;
+    --secondary-foreground: 220 15% 95%;
+
+    --accent:            194 100% 50%;
+    --accent-foreground: 220 14% 5%;
+
+    --destructive:            0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --ring: 194 100% 50%;
+
+    --chart-1: 194 100% 50%;
+    --chart-2: 220 10% 60%;
+    --chart-3: 220 10% 40%;
+    --chart-4: 0 72% 58%;
+    --chart-5: 150 60% 45%;
+
+    --sidebar-background:         220 12% 9%;
+    --sidebar-foreground:         220 15% 95%;
+    --sidebar-primary:            194 100% 50%;
+    --sidebar-primary-foreground: 220 14% 5%;
+    --sidebar-accent:             220 10% 13%;
+    --sidebar-accent-foreground:  220 15% 95%;
+    --sidebar-border:             220 10% 18%;
+    --sidebar-ring:               194 100% 50%;
+
+    /* Agent visualizer accent ramp used by the current conversation UI. */
+    --viz-stop-1: 194 100% 58%;
+    --viz-stop-2: 215 42% 72%;
+    --viz-stop-3: 272 62% 72%;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+/* --- Entry animations --- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-up-d1 { animation-delay: 60ms; }
+.animate-fade-up-d2 { animation-delay: 120ms; }
+.animate-fade-up-d3 { animation-delay: 180ms; }
+
+/* --- MicButtonWithVisualizer: force a true circle ---
+   The parent flex can stretch the <button> unevenly. */
+.conversation-mic-host {
+  flex-shrink: 0;
+}
+.conversation-mic-host > button {
+  aspect-ratio: 1 / 1;
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  min-height: 3rem;
+  max-width: 3rem;
+  max-height: 3rem;
+  border-radius: 9999px;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: visible; /* Web Audio bar visualizer in bottom band; avoid clipping */
+}
+@media (min-width: 640px) {
+  .conversation-mic-host > button {
+    width: 3.5rem;
+    height: 3.5rem;
+    min-width: 3.5rem;
+    min-height: 3.5rem;
+    max-width: 3.5rem;
+    max-height: 3.5rem;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Athena — viva surface tokens and components.
+
+   Scoped to .athena-root so the Agora quickstart's own light/dark theme is
+   untouched. Athena commits to a single dark treatment: it renders inside a
+   Chrome side panel next to whatever the student is reading, and a surface that
+   flipped with the OS theme would fight the page behind it.
+
+   Palette per the Athena design spec. `--athena-amber` is the deliberate
+   addition to the base kit: the kit defines success and danger but has no
+   "struggling" state, which is exactly the state the understanding map is for.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.athena-root {
+  --athena-bg: #0a0b10;
+  --athena-surface: #14151d;
+  --athena-surface-raised: #1c1e28;
+  --athena-border: #262835;
+
+  --athena-text: #e8eaf0;
+  --athena-text-dim: #7d8299;
+
+  --athena-blue: #4d8dff;
+  --athena-blue-dim: rgba(77, 141, 255, 0.14);
+
+  --athena-amber: #f5a623;
+  --athena-amber-dim: rgba(245, 166, 35, 0.12);
+
+  --athena-success: #2fd07a;
+  --athena-success-dim: rgba(47, 208, 122, 0.12);
+
+  --athena-danger: #ff5c5c;
+  --athena-danger-dim: rgba(255, 92, 92, 0.12);
+
+  --athena-radius: 10px;
+  --athena-radius-pill: 999px;
+
+  --athena-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  color-scheme: dark;
+  background: var(--athena-bg);
+  color: var(--athena-text);
+}
+
+/* Cards: 1px border, never a drop shadow — per the kit's surface rule. */
+.athena-card {
+  background: var(--athena-surface);
+  border: 1px solid var(--athena-border);
+  border-radius: var(--athena-radius);
+}
+
+.athena-mono {
+  font-family: var(--athena-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Status badge / live pulse dot ───────────────────────────────────────── */
+
+.athena-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--athena-radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.athena-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.athena-badge.is-live {
+  background: var(--athena-success-dim);
+  color: var(--athena-success);
+}
+
+.athena-badge.is-live .athena-badge-dot {
+  animation: athena-pulse 2s ease-in-out infinite;
+}
+
+.athena-badge.is-error {
+  background: var(--athena-danger-dim);
+  color: var(--athena-danger);
+}
+
+.athena-badge.is-idle {
+  background: var(--athena-surface-raised);
+  color: var(--athena-text-dim);
+}
+
+@keyframes athena-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+
+/* ── Understanding-map chips ─────────────────────────────────────────────── */
+
+.athena-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--athena-radius-pill);
+  border: 1px solid transparent;
+  font-family: var(--athena-font-mono);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+.athena-chip[data-status='unattempted'] {
+  background: var(--athena-surface-raised);
+  color: var(--athena-text-dim);
+  border-color: var(--athena-border);
+}
+
+.athena-chip[data-status='active'] {
+  background: var(--athena-blue-dim);
+  color: var(--athena-blue);
+  border-color: rgba(77, 141, 255, 0.3);
+}
+
+.athena-chip[data-status='active'] .athena-chip-dot {
+  animation: athena-pulse 1.6s ease-in-out infinite;
+}
+
+/* Amber covers both "partial" and "wrong" visually as the struggling state,
+   distinguished by border weight rather than a second hue — two warm colours
+   next to each other read as noise at chip size. */
+.athena-chip[data-status='partial'] {
+  background: var(--athena-amber-dim);
+  color: var(--athena-amber);
+  border-color: rgba(245, 166, 35, 0.28);
+}
+
+.athena-chip[data-status='wrong'] {
+  background: var(--athena-amber-dim);
+  color: var(--athena-amber);
+  border-color: var(--athena-amber);
+}
+
+.athena-chip[data-status='correct'] {
+  background: var(--athena-success-dim);
+  color: var(--athena-success);
+  border-color: rgba(47, 208, 122, 0.3);
+}
+
+.athena-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/*
+ * The flip. Fires whenever a chip changes status, so a colour change is never
+ * a silent swap. `--athena-flip-glow` is set per-chip from the destination
+ * colour so the halo matches where the chip is going, not where it was.
+ */
+.athena-chip.is-flipping {
+  animation: athena-flip 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes athena-flip {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--athena-flip-glow, transparent);
+  }
+  45% {
+    transform: scale(1.16);
+    box-shadow: 0 0 0 5px var(--athena-flip-glow, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* The recovery beat gets a longer, wider halo — this is the moment worth
+   noticing, so it should not look like every other status change. */
+.athena-chip.is-redeeming {
+  animation: athena-redeem 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes athena-redeem {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(47, 208, 122, 0.55);
+  }
+  35% {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 8px rgba(47, 208, 122, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 18px rgba(47, 208, 122, 0);
+  }
+}
+
+/* ── Voice-state orb ─────────────────────────────────────────────────────── */
+
+.athena-orb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(77, 141, 255, 0.28),
+    rgba(77, 141, 255, 0.05) 62%,
+    transparent 70%
+  );
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+
+.athena-orb-core {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--athena-blue);
+  box-shadow: 0 0 22px rgba(77, 141, 255, 0.65);
+  transition: transform 260ms ease, background-color 260ms ease,
+    box-shadow 260ms ease;
+}
+
+.athena-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(77, 141, 255, 0.35);
+}
+
+/* Speaking: the glow ring breathes outward. */
+.athena-orb[data-state='speaking'] .athena-orb-ring {
+  animation: athena-ring 1.5s ease-out infinite;
+}
+
+.athena-orb[data-state='speaking'] .athena-orb-core {
+  transform: scale(1.12);
+}
+
+/* Listening: dimmed and still — the student has the floor. */
+.athena-orb[data-state='listening'] {
+  opacity: 0.55;
+}
+
+.athena-orb[data-state='listening'] .athena-orb-core {
+  transform: scale(0.82);
+  box-shadow: 0 0 10px rgba(77, 141, 255, 0.3);
+}
+
+.athena-orb[data-state='thinking'] .athena-orb-core {
+  animation: athena-think 1.1s ease-in-out infinite;
+}
+
+.athena-orb[data-state='offline'] {
+  opacity: 0.3;
+}
+
+.athena-orb[data-state='offline'] .athena-orb-core {
+  background: var(--athena-text-dim);
+  box-shadow: none;
+}
+
+@keyframes athena-ring {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.14);
+    opacity: 0;
+  }
+}
+
+@keyframes athena-think {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+/* ── Scrollbars inside the narrow side panel ─────────────────────────────── */
+
+.athena-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--athena-border) transparent;
+}
+
+.athena-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.athena-scroll::-webkit-scrollbar-thumb {
+  background: var(--athena-border);
+  border-radius: 3px;
+}
+
+/* Respect the student's motion preference — every Athena animation is
+   decorative reinforcement of a state that is also conveyed by colour and text. */
+@media (prefers-reduced-motion: reduce) {
+  .athena-chip,
+  .athena-chip.is-flipping,
+  .athena-chip.is-redeeming,
+  .athena-badge.is-live .athena-badge-dot,
+  .athena-orb-ring,
+  .athena-orb-core {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Athena</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div id="state" class="state" role="status">
+      <div class="brand">ATHENA</div>
+      <p id="state-message" class="message">Reading your selection…</p>
+      <p id="state-detail" class="detail"></p>
+      <button id="retry" class="button" hidden type="button">Try again</button>
+    </div>
+
+    <!--
+      The viva itself is served by the Athena app and embedded here.
+      `allow="microphone"` delegates the microphone permission down to it, so the
+      prompt comes from http://localhost — an origin Chrome will prompt for —
+      rather than from the extension surface, where prompts are unreliable.
+    -->
+    <iframe
+      id="viva"
+      title="Athena viva"
+      allow="microphone; autoplay"
+      hidden
+    ></iframe>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

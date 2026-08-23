@@ -306,20 +306,27 @@ export default function VivaSession({
   }, [rtmClient]);
 
   /**
-   * Silence watchdog: the agent is in the channel and the toolkit is
-   * subscribed, but nothing has arrived over RTM. Mirrors the toolkit's own
-   * 15s console warning, which the student never sees.
+   * Silence watchdog.
+   *
+   * Two different failures look identical to a student — an empty screen — and
+   * both need saying out loud. Either the agent never joined the channel at
+   * all, or it joined and is audibly speaking while nothing arrives over RTM.
+   *
+   * Deliberately armed on `aiReady` alone. An earlier version also required
+   * `isAgentConnected`, which meant the worse failure — the agent never
+   * arriving — never armed the timer and so was the one case that reported
+   * nothing whatsoever.
    */
   const [rtmSilent, setRtmSilent] = useState(false);
   useEffect(() => {
-    if (!aiReady || !isAgentConnected) return;
+    if (!aiReady) return;
     if (rawTranscript.length > 0 || agentState) {
       setRtmSilent(false);
       return;
     }
-    const id = setTimeout(() => setRtmSilent(true), 15000);
+    const id = setTimeout(() => setRtmSilent(true), 18000);
     return () => clearTimeout(id);
-  }, [aiReady, isAgentConnected, rawTranscript.length, agentState]);
+  }, [aiReady, rawTranscript.length, agentState]);
 
   // ── Kick off the viva ────────────────────────────────────────────────────
   /**
@@ -647,10 +654,10 @@ export default function VivaSession({
           }}
         >
           <p className="mb-2 leading-snug">
-            Athena&apos;s voice is coming through, but her transcript is not.
-            Agora&apos;s messaging connection did not establish
-            {rtmDown ? ` (${rtmDown})` : ''}, so the map and captions cannot
-            update. Restarting usually clears it.
+            {isAgentConnected
+              ? `Athena's voice is coming through, but her transcript is not. Agora's messaging connection did not establish${rtmDown ? ` (${rtmDown})` : ''}, so the map and captions cannot update.`
+              : 'Athena never joined the channel. The session started but the agent did not arrive.'}{' '}
+            Restarting usually clears it.
           </p>
           <button
             type="button"

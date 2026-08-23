@@ -11,6 +11,7 @@ The whole thing hangs on **beat 6**. Everything before it exists to set that up.
 - [ ] Extension loaded at `chrome://extensions` (Developer mode → Load unpacked → `extension/`)
 - [ ] Microphone permission for `localhost:3000` **already granted** — do the grant on a throwaway run, not on camera
 - [ ] <http://localhost:3000/demo.html> open
+- [ ] The demo passage also copied to your clipboard, so you can paste if the highlight shortcut misses
 - [ ] Headphones on. Without them the agent hears its own speech and interrupts itself.
 - [ ] Quiet room. Deepgram will happily transcribe a passing conversation as your answer.
 
@@ -23,12 +24,14 @@ The whole thing hangs on **beat 6**. Everything before it exists to set that up.
 **1 · Frame the problem (20s)**
 > "I can read a page on database indexing and feel like I know it. I find out I didn't in the exam, when someone asks me *why*. Nothing between the textbook and the exam makes you say it out loud."
 
-**2 · The highlight (15s)**
-Highlight the **Indexing** and **Transactions** sections on the demo page. Click the Athena icon.
+**2 · The passage (15s)**
+Highlight the **Indexing** and **Transactions** sections on the demo page, then click the Athena icon. The side panel opens with the text already in the box.
 
 > "Any page. Anything I'm already reading."
 
-Side panel opens, shows the passage back. Click **Start viva**.
+Click **Start viva**.
+
+*If the highlight doesn't land — it's best-effort, Chrome collapses selections sometimes — just paste into the box. Pasting is the primary input, so this is not a visible failure.*
 
 **3 · The map appears (15s)**
 Athena greets, then takes her first turn. Four to six grey chips appear.
@@ -97,6 +100,7 @@ And one deliberately weak answer, for beat 5. Vague, not silent — silence make
 | Problem | Do this |
 |---|---|
 | No mic prompt in the panel | Open `localhost:3000/viva` in a tab, grant there, reopen the panel. Grant is per-origin and persists. |
+| Highlight doesn't land in the box | Paste it. This is the designed primary path, not a fallback — don't draw attention to it. |
 | Agent doesn't join | `agora project doctor --deep`. Usually RTM enablement lagging — wait, retry. |
 | Chips don't appear | She hasn't taken her first turn. Say "I'm ready." |
 | A chip lags the conversation | Keep going — it catches up on the next payload. Don't narrate it. |

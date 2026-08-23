@@ -18,6 +18,17 @@
   box-sizing: border-box;
 }
 
+/*
+ * `hidden` must beat every layout rule below.
+ *
+ * Without !important this loses to any ID selector — `#compose { display: flex }`
+ * outranks `.view[hidden] { display: none }` on specificity, so the compose view
+ * stayed on screen after the viva loaded and pushed the frame below the fold.
+ */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -42,6 +53,7 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: 16px 14px;
+  overflow-y: auto;
 }
 
 .head {
@@ -73,7 +85,10 @@ body {
 
 .passage {
   flex: 1 1 auto;
-  min-height: 140px;
+  min-height: 120px;
+  /* Cap it so the character count, the button, and the tip always stay in view
+     however much the student pastes. */
+  max-height: 42vh;
   width: 100%;
   padding: 10px;
   resize: none;

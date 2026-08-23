@@ -29,6 +29,13 @@ const statusDetailEl = document.getElementById('status-detail');
 const statusBackEl = document.getElementById('status-back');
 
 const frameEl = document.getElementById('viva');
+const frameBarEl = document.getElementById('frame-bar');
+const frameWarningEl = document.getElementById('frame-warning');
+const openTabEl = document.getElementById('open-tab');
+const frameBackEl = document.getElementById('frame-back');
+
+/** Cleared when the embedded viva reports that it hydrated. */
+let frameWatchdog = null;
 
 /** Most recent capture offered by the service worker, if any. */
 let pendingSelection = '';
@@ -37,10 +44,23 @@ let pendingSource = { title: '', url: '' };
 
 // ── View switching ────────────────────────────────────────────────────────────
 
+function hideFrame() {
+  if (frameWatchdog) {
+    clearTimeout(frameWatchdog);
+    frameWatchdog = null;
+  }
+  frameEl.hidden = true;
+  frameBarEl.hidden = true;
+  frameWarningEl.hidden = true;
+  // Dropping the src tears down the RTC session rather than leaving a hidden
+  // frame holding the microphone open.
+  frameEl.removeAttribute('src');
+}
+
 function showCompose() {
+  hideFrame();
   composeEl.hidden = false;
   statusEl.hidden = true;
-  frameEl.hidden = true;
   passageEl.focus();
 }
 
@@ -49,17 +69,39 @@ function showStatus(message, detail = '', { error = false, back = false } = {}) 
   statusDetailEl.textContent = detail;
   statusEl.classList.toggle('is-error', error);
   statusBackEl.hidden = !back;
+  hideFrame();
   composeEl.hidden = true;
   statusEl.hidden = false;
-  frameEl.hidden = true;
 }
 
 function showViva(sessionId) {
-  frameEl.src = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}`;
+  const url = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}`;
+  openTabEl.href = url;
+  frameEl.src = url;
+
   composeEl.hidden = true;
   statusEl.hidden = true;
+  frameBarEl.hidden = false;
+  frameWarningEl.hidden = true;
   frameEl.hidden = false;
+
+  // If the frame never reports that it hydrated, its buttons are inert and the
+  // student would be clicking into dead pixels. Say so, and point at the tab.
+  if (frameWatchdog) clearTimeout(frameWatchdog);
+  frameWatchdog = setTimeout(() => {
+    frameWarningEl.hidden = false;
+  }, 6000);
 }
+
+/** The embedded viva posts this once React has mounted and handlers are live. */
+window.addEventListener('message', (event) => {
+  if (event.origin !== SERVER || event.data?.type !== 'athena:ready') return;
+  if (frameWatchdog) {
+    clearTimeout(frameWatchdog);
+    frameWatchdog = null;
+  }
+  frameWarningEl.hidden = true;
+});
 
 // ── Compose state ─────────────────────────────────────────────────────────────
 
@@ -178,6 +220,20 @@ passageEl.addEventListener('keydown', (event) => {
 
 submitEl.addEventListener('click', startViva);
 statusBackEl.addEventListener('click', showCompose);
+frameBackEl.addEventListener('click', showCompose);
+
+// Opening in a tab hands the session over wholesale, so the frame must let go
+// of the microphone first.
+openTabEl.addEventListener('click', () => {
+  const url = openTabEl.href;
+  hideFrame();
+  showStatus(
+    'Your viva is open in a tab.',
+    'Come back here and paste a new passage when you want another one.',
+    { back: true },
+  );
+  openTabEl.href = url;
+});
 
 useSelectionEl.addEventListener('click', async () => {
   // Re-read the page rather than trusting the stash: the earlier capture may

@@ -55,6 +55,21 @@
       prompt comes from http://localhost — an origin Chrome will prompt for —
       rather than from the extension surface, where prompts are unreliable.
     -->
+    <!--
+      A thin bar above the viva. The panel cannot inspect a cross-origin frame,
+      so "Open in a tab" is always available as an escape hatch, and the warning
+      appears if the frame never reports that it hydrated.
+    -->
+    <div id="frame-bar" class="bar" hidden>
+      <span id="frame-warning" class="bar-warning" hidden
+        >Panel didn't load — open in a tab.</span
+      >
+      <a id="open-tab" class="link" href="#" target="_blank" rel="noopener"
+        >Open in a tab ↗</a
+      >
+      <button id="frame-back" class="link" type="button">New passage</button>
+    </div>
+
     <iframe
       id="viva"
       title="Athena viva"

@@ -2,7 +2,9 @@
 
 **Paste or highlight anything you're studying. Have a live spoken viva about it.**
 
-Athena is a Chrome extension that turns any passage — a lecture note, a Canvas page, a blog post — into a real-time spoken oral examination. Paste it into the side panel, or highlight it on the page and let Athena pick it up. Athena asks, listens, and picks her next question based on how the last answer went. You can cut in mid-sentence. A live understanding map on screen tracks what you've got and what you haven't, chip by chip, as the conversation happens.
+Athena is a Chrome extension that turns any passage — a lecture note, a Canvas page, a blog post — into a real-time spoken oral examination. Paste it into the side panel, or highlight it on the page and let Athena pick it up.
+
+She opens by telling you what the material actually covers and asking what you want from the session: to be examined, or to have something explained first. The viva starts when you say so. Athena asks, listens, and picks her next question based on how the last answer went. You can cut in mid-sentence. A live understanding map on screen tracks what you've got and what you haven't, chip by chip, as the conversation happens.
 
 Built on the [Agora Conversational AI Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
 
@@ -26,6 +28,7 @@ Most study bots quiz you from a fixed list. Athena does three things that a quiz
 2. **She circles back, and you watch it land.** The topic you fumbled sits amber on screen. Several minutes later Athena returns to it unprompted, reframes the question, and when you get it the chip flips green with a visible pulse. That recovery moment is the point of the product.
 3. **She admits when she can't tell.** An ambiguous answer produces a clarifying question, not a silent guess and a wrong mark.
 4. **She teaches when you ask her to.** Say "I don't know" and she explains it, then checks you followed — a study aid, not a gatekeeper. The topic still goes amber, and she comes back to it.
+5. **She asks before she examines.** The session opens with an orientation, not a question. You decide when the examination starts, and you can ask her to explain things first for as long as you like.
 
 You can answer out loud or type — typed answers travel the same path and land in the transcript and summary identically, which also makes the whole thing usable in a quiet library or a noisy room.
 
@@ -106,6 +109,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 | **Recovery from correction** | A wrong or partial topic revisited and answered correctly flips the chip green and is recorded as *recovered* in the summary. |
 | **Client → agent text injection** | Typed answers and the "go back over my weak topics" steer both push text into the live session via `sendText()`. |
 | **Teaching on request** | Saying "I don't know" gets a short explanation drawn from the passage and a check question — not a refusal. The topic is marked wrong, then re-asked later. |
+| **Two-phase session** | Athena orients first — what the material covers, what she would examine — and answers whatever you ask before the viva begins. Nothing lands on the map until you choose to start. |
 
 ---
 

@@ -30,7 +30,6 @@ import { applyControl, parseTurn } from '@/lib/athena/parse';
 import { KICKOFF_MESSAGE, KICKOFF_PREFIX } from '@/lib/athena/prompt';
 import type { Topic, TranscriptTurn } from '@/lib/athena/types';
 import { UnderstandingMap } from './UnderstandingMap';
-import { SummaryPanel } from './SummaryPanel';
 
 type AgoraRtcWithParameters = typeof AgoraRTC & {
   setParameter?: (key: string, value: unknown) => void;
@@ -42,7 +41,19 @@ export interface VivaSessionProps {
   agoraData: { token: string; uid: string; channel: string; agentId?: string };
   rtmClient: RTMClient;
   onTokenWillExpire: (uid: string) => Promise<{ rtcToken: string; rtmToken: string }>;
-  onEnd: () => void;
+  /**
+   * Hands the finished session upward. The summary must be rendered by a
+   * component that survives RTC teardown — this one is unmounted the moment the
+   * RTM client is released.
+   */
+  onEnd: (result: VivaResult) => void;
+}
+
+export interface VivaResult {
+  markdown: string | null;
+  downloadUrl: string | null;
+  topics: Topic[];
+  error: string | null;
 }
 
 type OrbState = 'offline' | 'listening' | 'thinking' | 'speaking';
@@ -91,7 +102,6 @@ export default function VivaSession({
   const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
-  const [summary, setSummary] = useState<{ markdown: string; downloadUrl: string } | null>(null);
 
   const [topics, setTopics] = useState<Topic[]>([]);
   const [rawTranscript, setRawTranscript] = useState<
@@ -450,6 +460,11 @@ export default function VivaSession({
 
   const handleEnd = useCallback(async () => {
     setEnding(true);
+
+    let markdown: string | null = null;
+    let downloadUrl: string | null = null;
+    let error: string | null = null;
+
     try {
       const response = await fetch('/api/athena/summary', {
         method: 'POST',
@@ -465,14 +480,16 @@ export default function VivaSession({
       });
       if (response.ok) {
         const data = await response.json();
-        setSummary({ markdown: data.markdown, downloadUrl: data.download_url });
+        markdown = data.markdown;
+        downloadUrl = data.download_url;
       } else {
-        setPipelineError('Could not build the summary, but your session is over.');
+        error = 'Your viva is over, but the summary could not be built.';
       }
     } catch {
-      setPipelineError('Could not build the summary, but your session is over.');
+      error = 'Your viva is over, but the summary could not be built.';
     }
-    onEnd();
+
+    onEnd({ markdown, downloadUrl, topics, error });
   }, [sessionId, topics, visibleTurns, onEnd]);
 
   const orb = orbStateFor(agentState, isAgentConnected, connectionState);
@@ -480,15 +497,6 @@ export default function VivaSession({
     Math.floor(elapsed / 1000) % 60,
   ).padStart(2, '0')}`;
 
-  if (summary) {
-    return (
-      <SummaryPanel
-        markdown={summary.markdown}
-        downloadUrl={summary.downloadUrl}
-        topics={topics}
-      />
-    );
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">

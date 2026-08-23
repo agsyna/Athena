@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { RTMClient } from 'agora-rtm';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { SummaryPanel } from './SummaryPanel';
+import type { VivaResult } from './VivaSession';
 
 const VivaSession = dynamic(() => import('./VivaSession'), { ssr: false });
 
@@ -53,6 +55,12 @@ export default function AthenaViva({
   const [session, setSession] = useState<SessionData | null>(null);
   const [agoraData, setAgoraData] = useState<AgoraData | null>(null);
   const [rtmClient, setRtmClient] = useState<RTMClient | null>(null);
+  /**
+   * Held here rather than inside VivaSession. Releasing the RTM client unmounts
+   * that component, which previously destroyed the summary the moment it was
+   * produced — the student saw it for a single frame and then a blank panel.
+   */
+  const [result, setResult] = useState<VivaResult | null>(null);
 
   // Warm the heavy browser-only modules while the student reads the pre-call
   // card, so pressing Start does not stall on a dynamic import.
@@ -203,20 +211,28 @@ export default function AthenaViva({
     return () => window.removeEventListener('pagehide', stop);
   }, [agoraData?.agentId]);
 
-  const handleEnd = useCallback(async () => {
-    if (agoraData?.agentId) {
-      await fetch('/api/stop-conversation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_id: agoraData.agentId }),
-      }).catch(() => {
-        // The agent also idles out on its own; a failed stop is not worth
-        // blocking the summary the student is waiting for.
-      });
-    }
-    rtmClient?.logout().catch(() => {});
-    setRtmClient(null);
-  }, [agoraData, rtmClient]);
+  const handleEnd = useCallback(
+    async (finished: VivaResult) => {
+      // Show the summary before tearing anything down, so the transition is a
+      // swap rather than a gap.
+      setResult(finished);
+      setPhase('ended');
+
+      if (agoraData?.agentId) {
+        await fetch('/api/stop-conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: agoraData.agentId }),
+        }).catch(() => {
+          // The agent also idles out on its own; a failed stop is not worth
+          // blocking the summary the student is waiting for.
+        });
+      }
+      rtmClient?.logout().catch(() => {});
+      setRtmClient(null);
+    },
+    [agoraData, rtmClient],
+  );
 
   return (
     <div className="athena-root flex h-dvh min-h-0 w-full flex-col overflow-hidden">
@@ -307,6 +323,28 @@ export default function AthenaViva({
             Allow the microphone when Chrome asks.
           </p>
         </div>
+      )}
+
+      {phase === 'ended' && result && (
+        <>
+          {result.markdown && result.downloadUrl ? (
+            <SummaryPanel
+              markdown={result.markdown}
+              downloadUrl={result.downloadUrl}
+              topics={result.topics}
+            />
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+              <span className="athena-badge is-idle">
+                <span className="athena-badge-dot" aria-hidden />
+                viva ended
+              </span>
+              <p role="alert" className="text-[13px] leading-snug text-[var(--athena-text)]">
+                {result.error ?? 'Your viva is over.'}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {phase === 'live' && agoraData && rtmClient && sessionId && (

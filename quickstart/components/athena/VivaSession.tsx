@@ -560,7 +560,7 @@ export default function VivaSession({
         >
           <p className="mb-2 leading-snug">
             {micRetryFailed
-              ? 'Chrome is blocking the microphone for this page. Open the viva in a tab from the bar above and allow it there.'
+              ? 'Chrome is still blocking the microphone. Click the microphone icon in the address bar, choose Allow, then reload this window.'
               : 'Athena cannot hear you — the microphone was not granted.'}
           </p>
           {!micRetryFailed && (

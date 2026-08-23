@@ -2,15 +2,16 @@
  * Athena side panel.
  *
  * Pasting a passage is the primary input. Highlighting a page and clicking the
- * Athena icon is an accelerator that pre-fills the box — never the only way in.
+ * Athena icon is an accelerator that pre-fills the box — never the only way in,
+ * because a page selection can be collapsed before the panel reads it and
+ * Chrome refuses injection outright on internal pages and the PDF viewer.
  *
- * That split exists because a page selection is fragile: it can be collapsed by
- * the time the panel asks for it, the panel cannot re-read the page on its own,
- * and Chrome refuses injection entirely on internal pages and the built-in PDF
- * viewer. A textarea always works.
- *
- * Everything voice-related lives in the Athena app, which this panel embeds, so
- * this file never has to duplicate the Agora client wiring.
+ * The viva itself runs in its own window, not embedded here. A cross-origin
+ * frame inside a chrome-extension:// page is a separate microphone permission
+ * context: Chrome does not inherit a grant already given to localhost, and the
+ * prompt it raises cannot reliably be answered from the panel. Everything
+ * voice-related lives in the Athena app, so this file never duplicates the
+ * Agora client wiring.
  */
 
 const SERVER = 'http://localhost:3000';
@@ -28,39 +29,23 @@ const statusMessageEl = document.getElementById('status-message');
 const statusDetailEl = document.getElementById('status-detail');
 const statusBackEl = document.getElementById('status-back');
 
-const frameEl = document.getElementById('viva');
-const frameBarEl = document.getElementById('frame-bar');
-const frameWarningEl = document.getElementById('frame-warning');
-const openTabEl = document.getElementById('open-tab');
-const frameBackEl = document.getElementById('frame-back');
-
-/** Cleared when the embedded viva reports that it hydrated. */
-let frameWatchdog = null;
+const runningEl = document.getElementById('running');
+const focusWindowEl = document.getElementById('focus-window');
+const runningNewEl = document.getElementById('running-new');
 
 /** Most recent capture offered by the service worker, if any. */
 let pendingSelection = '';
 /** Page title and URL for that capture, used to label the summary file. */
 let pendingSource = { title: '', url: '' };
+/** The window currently running a viva, if one is open. */
+let vivaWindowId = null;
 
 // ── View switching ────────────────────────────────────────────────────────────
 
-function hideFrame() {
-  if (frameWatchdog) {
-    clearTimeout(frameWatchdog);
-    frameWatchdog = null;
-  }
-  frameEl.hidden = true;
-  frameBarEl.hidden = true;
-  frameWarningEl.hidden = true;
-  // Dropping the src tears down the RTC session rather than leaving a hidden
-  // frame holding the microphone open.
-  frameEl.removeAttribute('src');
-}
-
 function showCompose() {
-  hideFrame();
   composeEl.hidden = false;
   statusEl.hidden = true;
+  runningEl.hidden = true;
   passageEl.focus();
 }
 
@@ -69,41 +54,16 @@ function showStatus(message, detail = '', { error = false, back = false } = {}) 
   statusDetailEl.textContent = detail;
   statusEl.classList.toggle('is-error', error);
   statusBackEl.hidden = !back;
-  hideFrame();
   composeEl.hidden = true;
+  runningEl.hidden = true;
   statusEl.hidden = false;
 }
 
-function showViva(sessionId) {
-  // a=1 starts the viva immediately: the student pressed "Start viva" here, and
-  // making them press an identical button again inside the frame is friction.
-  const url = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}&a=1`;
-  openTabEl.href = url;
-  frameEl.src = url;
-
+function showRunning() {
   composeEl.hidden = true;
   statusEl.hidden = true;
-  frameBarEl.hidden = false;
-  frameWarningEl.hidden = true;
-  frameEl.hidden = false;
-
-  // If the frame never reports that it hydrated, its buttons are inert and the
-  // student would be clicking into dead pixels. Say so, and point at the tab.
-  if (frameWatchdog) clearTimeout(frameWatchdog);
-  frameWatchdog = setTimeout(() => {
-    frameWarningEl.hidden = false;
-  }, 6000);
+  runningEl.hidden = false;
 }
-
-/** The embedded viva posts this once React has mounted and handlers are live. */
-window.addEventListener('message', (event) => {
-  if (event.origin !== SERVER || event.data?.type !== 'athena:ready') return;
-  if (frameWatchdog) {
-    clearTimeout(frameWatchdog);
-    frameWatchdog = null;
-  }
-  frameWarningEl.hidden = true;
-});
 
 // ── Compose state ─────────────────────────────────────────────────────────────
 
@@ -127,9 +87,9 @@ function setPassage(text) {
 
 // ── Talking to the service worker ─────────────────────────────────────────────
 
-function ask(type) {
+function ask(message) {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type }, (response) => {
+    chrome.runtime.sendMessage(message, (response) => {
       // Reading lastError suppresses the "unchecked runtime.lastError" warning
       // when the service worker was asleep and the message never landed.
       void chrome.runtime.lastError;
@@ -171,6 +131,7 @@ async function startViva() {
 
   showStatus('Preparing your viva…', `${passage.length} characters.`);
 
+  let sessionId;
   try {
     const response = await fetch(`${SERVER}/api/athena/session`, {
       method: 'POST',
@@ -195,14 +156,31 @@ async function startViva() {
       return;
     }
 
-    showViva(data.session_id);
+    sessionId = data.session_id;
   } catch {
     showStatus(
       'Athena server is not reachable.',
       `Run "pnpm dev" in the quickstart folder, then try again. Expected at ${SERVER}.`,
       { error: true, back: true },
     );
+    return;
   }
+
+  // a=1 starts the viva on arrival: the student pressed "Start viva" here, and
+  // making them press an identical button in the new window is friction.
+  const url = `${SERVER}/viva?s=${encodeURIComponent(sessionId)}&a=1`;
+  const opened = await ask({ type: 'athena:open-window', url });
+
+  if (!opened?.windowId) {
+    showStatus('Could not open the viva window.', opened?.error ?? '', {
+      error: true,
+      back: true,
+    });
+    return;
+  }
+
+  vivaWindowId = opened.windowId;
+  showRunning();
 }
 
 // ── Wiring ────────────────────────────────────────────────────────────────────
@@ -222,25 +200,21 @@ passageEl.addEventListener('keydown', (event) => {
 
 submitEl.addEventListener('click', startViva);
 statusBackEl.addEventListener('click', showCompose);
-frameBackEl.addEventListener('click', showCompose);
+runningNewEl.addEventListener('click', showCompose);
 
-// Opening in a tab hands the session over wholesale, so the frame must let go
-// of the microphone first.
-openTabEl.addEventListener('click', () => {
-  const url = openTabEl.href;
-  hideFrame();
-  showStatus(
-    'Your viva is open in a tab.',
-    'Come back here and paste a new passage when you want another one.',
-    { back: true },
-  );
-  openTabEl.href = url;
+focusWindowEl.addEventListener('click', async () => {
+  if (vivaWindowId == null) return showCompose();
+  const result = await ask({ type: 'athena:focus-window', windowId: vivaWindowId });
+  if (!result?.ok) {
+    vivaWindowId = null;
+    showCompose();
+  }
 });
 
 useSelectionEl.addEventListener('click', async () => {
   // Re-read the page rather than trusting the stash: the earlier capture may
   // predate whatever the student has highlighted since.
-  const fresh = await ask('athena:recapture');
+  const fresh = await ask({ type: 'athena:recapture' });
   if (adoptSelection(fresh, { replace: true })) return;
 
   composeErrorEl.textContent =
@@ -248,24 +222,27 @@ useSelectionEl.addEventListener('click', async () => {
   composeErrorEl.hidden = false;
 });
 
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== 'athena:window-closed') return;
+  if (message.windowId !== vivaWindowId) return;
+  vivaWindowId = null;
+  showCompose();
+});
+
 /**
  * A fresh icon click while the panel is already open re-stashes the selection.
- * Without this listener the panel would keep showing whatever it read when it
- * first mounted — the bug that made "Try again" useless.
+ * Without this the panel would keep showing whatever it read when it mounted.
+ * A running viva is left alone — the student did not ask to abandon it.
  */
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'session' || !changes['athena:selection']) return;
-  const next = changes['athena:selection'].newValue;
-  // Only the compose view should ever be reshaped underneath the student.
-  if (frameEl.hidden) {
-    adoptSelection(next, { replace: false });
-    if (statusEl.hidden === false && !statusEl.classList.contains('is-error')) return;
-    showCompose();
-  }
+  if (!runningEl.hidden) return;
+  adoptSelection(changes['athena:selection'].newValue, { replace: false });
+  showCompose();
 });
 
 (async function init() {
   showCompose();
   refreshCompose();
-  adoptSelection(await ask('athena:get-selection'), { replace: false });
+  adoptSelection(await ask({ type: 'athena:get-selection' }), { replace: false });
 })();

@@ -240,50 +240,59 @@ body {
   display: none;
 }
 
-/* ── Embedded viva ───────────────────────────────────────────────────────── */
+/* ── Running view ────────────────────────────────────────────────────────── */
 
-/* When the viva is showing, body becomes a column so the bar keeps its height
-   and the frame takes everything left over. */
-body:has(#viva:not([hidden])) {
+.stack {
   display: flex;
   flex-direction: column;
-}
-
-.bar {
-  display: flex;
-  flex-shrink: 0;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 6px 12px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  margin-top: 6px;
 }
 
-.bar[hidden] {
-  display: none;
+/* Echoes the orb on the viva surface, so the panel and the window read as one
+   product rather than two. */
+.orb {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(77, 141, 255, 0.3),
+    rgba(77, 141, 255, 0.05) 62%,
+    transparent 70%
+  );
+  position: relative;
 }
 
-.bar-warning {
-  margin-right: auto;
-  font-size: 10px;
-  line-height: 1.3;
-  color: var(--amber);
+.orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 16px rgba(77, 141, 255, 0.6);
+  animation: pulse 2.4s ease-in-out infinite;
 }
 
-.bar-warning[hidden] {
-  display: none;
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
 }
 
-.bar .link {
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-#viva {
-  display: block;
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
-  border: 0;
+@media (prefers-reduced-motion: reduce) {
+  .orb::after {
+    animation: none;
+  }
 }

@@ -88,6 +88,57 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 /**
+ * Opens the viva in its own window, parked against the right edge of the
+ * browser window the student is reading in.
+ *
+ * A window rather than a frame inside the panel: a cross-origin frame in a
+ * chrome-extension:// page is a separate microphone permission context, so
+ * Chrome neither inherits an existing grant for localhost nor reliably lets the
+ * prompt be answered from the panel. A top-level window has neither problem.
+ */
+const VIVA_WINDOW = { width: 460, height: 860 };
+
+async function openVivaWindow(url) {
+  let placement = {};
+  try {
+    const current = await chrome.windows.getCurrent();
+    if (current?.left != null && current?.width != null) {
+      placement = {
+        left: Math.max(0, current.left + current.width - VIVA_WINDOW.width - 24),
+        top: Math.max(0, (current.top ?? 0) + 24),
+      };
+    }
+  } catch {
+    // Fall back to wherever Chrome wants to put it.
+  }
+
+  try {
+    const win = await chrome.windows.create({
+      url,
+      type: 'popup',
+      focused: true,
+      ...VIVA_WINDOW,
+      ...placement,
+    });
+    return { windowId: win.id };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Tell the panel when the viva window goes away, so it can offer a new passage
+ * instead of pointing at a window that no longer exists.
+ */
+chrome.windows.onRemoved.addListener((windowId) => {
+  chrome.runtime
+    .sendMessage({ type: 'athena:window-closed', windowId })
+    .catch(() => {
+      // No panel listening; nothing to tell.
+    });
+});
+
+/**
  * Panel messages.
  *
  * `get-selection` returns whatever was stashed at click time — what the panel
@@ -105,6 +156,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse(data[SELECTION_KEY] ?? null);
     });
     return true; // keep the channel open for the async response
+  }
+
+  if (message?.type === 'athena:open-window') {
+    openVivaWindow(message.url).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === 'athena:focus-window') {
+    chrome.windows
+      .update(message.windowId, { focused: true, drawAttention: true })
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
   }
 
   if (message?.type === 'athena:recapture') {

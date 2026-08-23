@@ -50,32 +50,31 @@
     </section>
 
     <!--
-      The viva itself is served by the Athena app and embedded here.
-      `allow="microphone"` delegates the microphone permission down to it, so the
-      prompt comes from http://localhost — an origin Chrome will prompt for —
-      rather than from the extension surface, where prompts are unreliable.
-    -->
-    <!--
-      A thin bar above the viva. The panel cannot inspect a cross-origin frame,
-      so "Open in a tab" is always available as an escape hatch, and the warning
-      appears if the frame never reports that it hydrated.
-    -->
-    <div id="frame-bar" class="bar" hidden>
-      <span id="frame-warning" class="bar-warning" hidden
-        >Panel didn't load — open in a tab.</span
-      >
-      <a id="open-tab" class="link" href="#" target="_blank" rel="noopener"
-        >Open in a tab ↗</a
-      >
-      <button id="frame-back" class="link" type="button">New passage</button>
-    </div>
+      The viva runs in its own window rather than embedded here.
 
-    <iframe
-      id="viva"
-      title="Athena viva"
-      allow="microphone; autoplay"
-      hidden
-    ></iframe>
+      A cross-origin frame inside a chrome-extension:// page is a separate
+      microphone permission context: Chrome will not inherit a grant already
+      given to localhost, and the prompt it raises cannot reliably be answered
+      from the side panel. A real top-level window prompts normally and the
+      grant persists.
+    -->
+    <section id="running" class="view state" hidden>
+      <div class="orb" aria-hidden></div>
+      <div class="brand">VIVA RUNNING</div>
+      <p class="message">Athena is in her own window.</p>
+      <p class="detail">
+        Drag it beside whatever you're reading. Answer out loud — the
+        understanding map updates as you go.
+      </p>
+      <div class="stack">
+        <button id="focus-window" class="button" type="button">
+          Bring the viva to the front
+        </button>
+        <button id="running-new" class="link" type="button">
+          Start a different passage
+        </button>
+      </div>
+    </section>
 
     <script src="sidepanel.js"></script>
   </body>

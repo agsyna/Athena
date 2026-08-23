@@ -54,6 +54,30 @@ t('takes the last object when the model emits two', () => {
   assert.equal(r.control?.mark?.result, 'wrong');
 });
 
+t('survives an unbalanced quote in the spoken prose', () => {
+  // Observed in the wild: the model copied a quoted example and left its
+  // opening quote in the turn, which desynced the old string-state scanner and
+  // hid the payload completely.
+  const r = parseTurn('"Right, let us start. {"topics":["A","B"],"focus":"A"}');
+  assert.deepEqual(r.control?.topics, ['A', 'B']);
+  assert.equal(r.control?.focus, 'A');
+});
+
+t('survives an apostrophe and a stray quote before the payload', () => {
+  const r = parseTurn(`That's the "anomaly" argument. {"mark":{"topic":"Joins","result":"correct"}}`);
+  assert.equal(r.control?.mark?.topic, 'Joins');
+});
+
+t('finds the payload after prose containing braces', () => {
+  const r = parseTurn('Consider the set {1, 2, 3}. {"focus":"Sets"}');
+  assert.equal(r.control?.focus, 'Sets');
+});
+
+t('returns null when the only braces are prose', () => {
+  const r = parseTurn('Consider the set {1, 2, 3} carefully.');
+  assert.equal(r.control, null);
+});
+
 console.log('applyControl');
 const base = createTopics(['Normalization', 'Indexing', 'Transactions', 'Joins']);
 

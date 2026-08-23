@@ -40,7 +40,14 @@ interface AgoraData {
 
 type Phase = 'loading' | 'ready' | 'starting' | 'live' | 'ended' | 'error';
 
-export default function AthenaViva({ sessionId }: { sessionId: string | null }) {
+export default function AthenaViva({
+  sessionId,
+  autoStart = false,
+}: {
+  sessionId: string | null;
+  /** Skip the pre-call card — the student already pressed Start in the panel. */
+  autoStart?: boolean;
+}) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionData | null>(null);
@@ -165,6 +172,21 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
     }
   }, [sessionId]);
 
+  /**
+   * Launched from the extension: the student already pressed "Start viva" in
+   * the panel, so asking them to press a second identical button is friction,
+   * not consent. Start as soon as the passage is in hand.
+   *
+   * `startedOnce` guards against React StrictMode's double effect invocation,
+   * which would otherwise start two agents in the same channel.
+   */
+  const startedOnce = useRef(false);
+  useEffect(() => {
+    if (!autoStart || phase !== 'ready' || startedOnce.current) return;
+    startedOnce.current = true;
+    handleStart();
+  }, [autoStart, phase, handleStart]);
+
   const handleTokenWillExpire = useCallback(
     async (uid: string) => {
       const channel = agoraData?.channel;
@@ -226,7 +248,7 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
         </div>
       )}
 
-      {(phase === 'ready' || phase === 'starting') && session && (
+      {(phase === 'ready' || phase === 'starting') && session && !autoStart && (
         <div className="athena-scroll flex min-h-0 flex-1 flex-col gap-4 p-4">
           <header>
             <h1 className="athena-mono text-[13px] font-semibold tracking-[0.16em]">
@@ -267,6 +289,21 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
           <p className="text-center text-[10px] leading-tight text-[var(--athena-text-dim)]">
             Your microphone is used only for this session. Athena is a study aid,
             not a graded assessment.
+          </p>
+        </div>
+      )}
+
+      {autoStart && (phase === 'ready' || phase === 'starting') && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+          <div className="athena-orb" data-state="thinking" role="img" aria-label="Waking Athena">
+            <span className="athena-orb-ring" aria-hidden />
+            <span className="athena-orb-core" aria-hidden />
+          </div>
+          <p className="athena-mono text-[11px] uppercase tracking-[0.14em] text-[var(--athena-text-dim)]">
+            Waking Athena…
+          </p>
+          <p className="max-w-[30ch] text-[11px] leading-snug text-[var(--athena-text-dim)]">
+            Allow the microphone when Chrome asks.
           </p>
         </div>
       )}

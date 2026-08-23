@@ -99,6 +99,9 @@ export default function VivaSession({
   >([]);
 
   const aiRef = useRef<AgoraVoiceAI | null>(null);
+  // State, not just the ref: effects that wait on the toolkit need a render to
+  // react to it becoming available.
+  const [aiReady, setAiReady] = useState(false);
   const startedAt = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
@@ -135,8 +138,27 @@ export default function VivaSession({
 
   // Do NOT gate on micEnabled — that ties track lifetime to mute state.
   // Mute goes through track.setEnabled() only.
-  const { localMicrophoneTrack } = useLocalMicrophoneTrack(isReady);
+  const { localMicrophoneTrack, error: micError } = useLocalMicrophoneTrack(isReady);
   usePublish([localMicrophoneTrack]);
+
+  /**
+   * Microphone recovery.
+   *
+   * When the viva is auto-started from the extension panel there is no user
+   * gesture inside this document, and Chrome can refuse the microphone without
+   * ever showing a prompt. This button supplies the gesture directly, then
+   * reloads so the track is created with the permission already granted.
+   */
+  const [micRetryFailed, setMicRetryFailed] = useState(false);
+  const requestMicrophone = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      window.location.reload();
+    } catch {
+      setMicRetryFailed(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!client) return;
@@ -186,6 +208,7 @@ export default function VivaSession({
         }
 
         aiRef.current = ai;
+        setAiReady(true);
 
         // TRANSCRIPT_UPDATED delivers the FULL history each time — replace, never append.
         ai.on(AgoraVoiceAIEvents.TRANSCRIPT_UPDATED, (t) => setRawTranscript([...t]));
@@ -210,6 +233,7 @@ export default function VivaSession({
     return () => {
       cancelled = true;
       aiRef.current = null;
+      setAiReady(false);
       try {
         const ai = AgoraVoiceAI.getInstance();
         if (ai) {
@@ -236,15 +260,27 @@ export default function VivaSession({
   useClientEvent(client, 'connection-state-change', (state) => setConnectionState(state));
 
   // ── Kick off the viva ────────────────────────────────────────────────────
-  // The engine speaks a fixed greeting on join, but a fixed string cannot carry
-  // the topic list. Injecting a system turn makes Athena take her first real
-  // turn — topics and opening question — without waiting for the student.
+  /**
+   * The engine speaks a fixed greeting on join, but a fixed string cannot carry
+   * the topic list. Injecting one system turn makes Athena take her first real
+   * turn — topics plus opening question — without waiting for the student to
+   * speak first.
+   *
+   * Both conditions must be render-visible. Waiting on `aiRef.current` alone
+   * silently never fired: the agent usually joins before the async toolkit init
+   * resolves, and a ref changing does not re-run an effect.
+   *
+   * APPEND rather than a timer: the engine queues the message behind whatever
+   * the agent is currently saying, so the opening question cannot collide with
+   * the greeting and there is no delay to guess at.
+   */
   const kickedOff = useRef(false);
   useEffect(() => {
-    if (kickedOff.current || !isAgentConnected || !aiRef.current) return;
+    if (kickedOff.current || !aiReady || !isAgentConnected || !aiRef.current) return;
     kickedOff.current = true;
 
-    const timer = setTimeout(() => {
+    let attempt = 0;
+    const send = () => {
       aiRef.current
         ?.sendText(agentUID, {
           messageType: ChatMessageType.TEXT,
@@ -253,13 +289,21 @@ export default function VivaSession({
           responseInterruptable: true,
         })
         .catch(() => {
-          // Non-fatal: the student can simply say "I'm ready" instead.
+          // RTM can still be settling immediately after join. Retry once before
+          // telling the student to take the first move themselves.
+          if (attempt < 1) {
+            attempt += 1;
+            setTimeout(send, 1500);
+          } else {
+            setPipelineError(
+              'Athena did not pick up the passage automatically — say "I am ready" to start her off.',
+            );
+          }
         });
-      // Let the greeting land first, so the opening question does not collide with it.
-    }, 1200);
+    };
 
-    return () => clearTimeout(timer);
-  }, [isAgentConnected, agentUID]);
+    send();
+  }, [aiReady, isAgentConnected, agentUID]);
 
   // ── Read the silent control channel ──────────────────────────────────────
   const transcript = useMemo(
@@ -503,6 +547,34 @@ export default function VivaSession({
           </ul>
         )}
       </section>
+
+      {micError && (
+        <div
+          role="alert"
+          className="shrink-0 rounded-md border px-2.5 py-2 text-[11px]"
+          style={{
+            borderColor: 'var(--athena-amber)',
+            background: 'var(--athena-amber-dim)',
+            color: 'var(--athena-amber)',
+          }}
+        >
+          <p className="mb-2 leading-snug">
+            {micRetryFailed
+              ? 'Chrome is blocking the microphone for this page. Open the viva in a tab from the bar above and allow it there.'
+              : 'Athena cannot hear you — the microphone was not granted.'}
+          </p>
+          {!micRetryFailed && (
+            <button
+              type="button"
+              onClick={requestMicrophone}
+              className="rounded-md border px-2.5 py-1.5 text-[11px]"
+              style={{ borderColor: 'var(--athena-amber)' }}
+            >
+              Allow microphone
+            </button>
+          )}
+        </div>
+      )}
 
       {pipelineError && (
         <p

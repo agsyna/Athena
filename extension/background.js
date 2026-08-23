@@ -87,11 +87,35 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     .catch((error) => console.error('[athena]', error));
 });
 
-/** The panel asks for the stashed selection as soon as it mounts. */
+/**
+ * Panel messages.
+ *
+ * `get-selection` returns whatever was stashed at click time — what the panel
+ * reads when it first mounts.
+ *
+ * `recapture` re-reads the live page instead. The panel uses it when the
+ * student explicitly asks for the highlighted text, because the stash can be
+ * older than what is currently selected. `activeTab` stays granted for the tab
+ * once the student has clicked the icon, so this normally succeeds without a
+ * fresh gesture; when it does not, the panel falls back to the textarea.
+ */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'athena:get-selection') return false;
-  chrome.storage.session.get(SELECTION_KEY).then((data) => {
-    sendResponse(data[SELECTION_KEY] ?? null);
-  });
-  return true; // keep the channel open for the async response
+  if (message?.type === 'athena:get-selection') {
+    chrome.storage.session.get(SELECTION_KEY).then((data) => {
+      sendResponse(data[SELECTION_KEY] ?? null);
+    });
+    return true; // keep the channel open for the async response
+  }
+
+  if (message?.type === 'athena:recapture') {
+    (async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const capture = await captureFromTab(tab);
+      if (capture) await stash(capture, tab);
+      sendResponse(capture);
+    })();
+    return true;
+  }
+
+  return false;
 });

@@ -1,8 +1,8 @@
 # Athena
 
-**Highlight anything you're studying. Have a live spoken viva about it.**
+**Paste or highlight anything you're studying. Have a live spoken viva about it.**
 
-Athena is a Chrome extension that turns any highlighted passage — a lecture note, a Canvas page, a blog post — into a real-time spoken oral examination. Athena asks, listens, and picks her next question based on how the last answer went. You can cut in mid-sentence. A live understanding map on screen tracks what you've got and what you haven't, chip by chip, as the conversation happens.
+Athena is a Chrome extension that turns any passage — a lecture note, a Canvas page, a blog post — into a real-time spoken oral examination. Paste it into the side panel, or highlight it on the page and let Athena pick it up. Athena asks, listens, and picks her next question based on how the last answer went. You can cut in mid-sentence. A live understanding map on screen tracks what you've got and what you haven't, chip by chip, as the conversation happens.
 
 Built on the [Agora Conversational AI Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
 
@@ -61,8 +61,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 ```
 ┌──────────────────────────────┐
 │  Chrome extension (MV3)      │
-│  · service worker — captures the highlighted passage
-│  · side panel   — exchanges it for a session id, embeds the viva
+│  · service worker — captures a highlighted passage (optional accelerator)
+│  · side panel   — paste box; exchanges the passage for a session id,
+│                   then embeds the viva
 └───────────────┬──────────────┘
                 │  POST /api/athena/session   (passage → session id)
                 ▼
@@ -135,7 +136,11 @@ pnpm dev         # http://localhost:3000
 2. Enable **Developer mode**
 3. **Load unpacked** → select the [`extension/`](extension/) folder
 
-**Try it:** open <http://localhost:3000/demo.html>, highlight a section, click the Athena icon, and grant microphone access when Chrome asks.
+**Try it:** click the Athena icon to open the side panel, paste a few paragraphs into the box, and click **Start viva**. Grant microphone access when Chrome asks.
+
+Or use the shortcut: open <http://localhost:3000/demo.html>, highlight a section, then click the Athena icon — the highlighted text lands in the box ready to go.
+
+> **On highlighting.** Pasting is the primary input and always works. Highlight capture is an accelerator layered on top, because a page selection is genuinely fragile: it can be collapsed before the panel reads it, the panel cannot re-read the page by itself, and Chrome refuses injection outright on `chrome://` pages, the Web Store, and the built-in PDF viewer. When capture works the text is pre-filled; when it doesn't, the textarea is already there.
 
 ---
 
@@ -146,7 +151,7 @@ athena/
 ├── extension/              Chrome extension (MV3) — capture + control surface
 │   ├── manifest.json
 │   ├── background.js       captures the selection on the user gesture
-│   └── sidepanel.{html,js,css}
+│   └── sidepanel.{html,js,css}   paste box + embedded viva
 ├── quickstart/             the Athena app — official Agora Next.js quickstart, extended
 │   ├── app/viva/           the viva surface
 │   ├── app/api/athena/     session, start, summary
@@ -205,7 +210,7 @@ Athena is a **study aid, not a graded assessment.** That sentence is on screen t
 - **Single user, single machine.** Sessions live in an in-memory `Map` and do not survive a server restart or scale across replicas.
 - **One speaker.** No diarisation — a second voice in the room is treated as the student.
 - **English only**, per the ASR configuration.
-- **Chrome's built-in PDF viewer cannot be read.** Extensions are blocked from injecting there, and from `chrome://` pages and the Web Store. The panel says so explicitly. PDFs opened in a web-based viewer work.
+- **Highlight capture is best-effort.** Chrome blocks injection on `chrome://` pages, the Web Store, and the built-in PDF viewer, and a selection can be collapsed before the panel reads it. Pasting is the primary path and is unaffected.
 - **CORS is permissive by origin scheme** (`chrome-extension://`, `localhost`) because unpacked extension IDs are not known ahead of time. Fine for a local dev server; not suitable for public deployment as written.
 - **The control channel depends on model compliance.** `gpt-4o-mini` occasionally omits or malforms the payload. The parser is tolerant — a dropped payload means a chip updates one turn later, never a crash — but a chip can lag the conversation.
 - **One upstream fix to the quickstart.** `tailwind.config.ts` used `require()` inside a TypeScript config, which throws under Node 24+ where the config loads as ESM. Changed to an `import`. No other sample file was modified.

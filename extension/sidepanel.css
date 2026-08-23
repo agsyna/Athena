@@ -4,10 +4,12 @@
 :root {
   --bg: #0a0b10;
   --surface: #14151d;
+  --surface-raised: #1c1e28;
   --border: #262835;
   --text: #e8eaf0;
   --text-dim: #7d8299;
   --blue: #4d8dff;
+  --amber: #f5a623;
   --danger: #ff5c5c;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -27,6 +29,153 @@ body {
   color-scheme: dark;
 }
 
+.view[hidden],
+#viva[hidden] {
+  display: none;
+}
+
+/* ── Compose ─────────────────────────────────────────────────────────────── */
+
+#compose {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 14px;
+}
+
+.head {
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.sub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.label {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.passage {
+  flex: 1 1 auto;
+  min-height: 140px;
+  width: 100%;
+  padding: 10px;
+  resize: none;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.passage::placeholder {
+  color: var(--text-dim);
+}
+
+.passage:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.row {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.count.is-short {
+  color: var(--amber);
+}
+
+.link {
+  padding: 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--blue);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link[hidden] {
+  display: none;
+}
+
+.primary {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #08090d;
+  background: var(--blue);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.error {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--danger);
+  background: rgba(255, 92, 92, 0.12);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+
+.error[hidden] {
+  display: none;
+}
+
+.fine {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+/* ── Status ──────────────────────────────────────────────────────────────── */
+
 .state {
   display: flex;
   height: 100%;
@@ -38,17 +187,6 @@ body {
   text-align: center;
 }
 
-.state[hidden] {
-  display: none;
-}
-
-.brand {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-}
-
 .message {
   margin: 0;
   font-size: 13px;
@@ -57,10 +195,10 @@ body {
 
 .detail {
   margin: 0;
+  max-width: 30ch;
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-dim);
-  max-width: 30ch;
 }
 
 .state.is-error .message {
@@ -70,8 +208,8 @@ body {
 .button {
   margin-top: 4px;
   padding: 8px 16px;
-  font-size: 12px;
   font-family: inherit;
+  font-size: 12px;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -83,13 +221,15 @@ body {
   border-color: var(--blue);
 }
 
+.button[hidden] {
+  display: none;
+}
+
+/* ── Embedded viva ───────────────────────────────────────────────────────── */
+
 #viva {
+  display: block;
   width: 100%;
   height: 100%;
   border: 0;
-  display: block;
-}
-
-#viva[hidden] {
-  display: none;
 }

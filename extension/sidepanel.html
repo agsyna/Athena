@@ -7,12 +7,47 @@
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
-    <div id="state" class="state" role="status">
+    <!-- Compose: paste or edit the passage to be examined on. -->
+    <section id="compose" class="view" hidden>
+      <header class="head">
+        <div class="brand">ATHENA</div>
+        <p class="sub">A spoken viva on whatever you're studying.</p>
+      </header>
+
+      <label class="label" for="passage">Passage to be examined on</label>
+      <textarea
+        id="passage"
+        class="passage"
+        placeholder="Paste a few paragraphs here — lecture notes, a textbook section, anything you need to be able to explain out loud."
+        spellcheck="false"
+      ></textarea>
+
+      <div class="row">
+        <span id="count" class="count">0 characters</span>
+        <button id="use-selection" class="link" type="button" hidden>
+          Use highlighted text
+        </button>
+      </div>
+
+      <p id="compose-error" class="error" role="alert" hidden></p>
+
+      <button id="submit" class="primary" type="button" disabled>
+        Start viva
+      </button>
+
+      <p class="fine">
+        Tip: highlight text on a page before clicking the Athena icon and it
+        lands here automatically.
+      </p>
+    </section>
+
+    <!-- Transient status while a session is being created. -->
+    <section id="status" class="view state" hidden>
       <div class="brand">ATHENA</div>
-      <p id="state-message" class="message">Reading your selection…</p>
-      <p id="state-detail" class="detail"></p>
-      <button id="retry" class="button" hidden type="button">Try again</button>
-    </div>
+      <p id="status-message" class="message">Preparing your viva…</p>
+      <p id="status-detail" class="detail"></p>
+      <button id="status-back" class="button" hidden type="button">Back</button>
+    </section>
 
     <!--
       The viva itself is served by the Athena app and embedded here.

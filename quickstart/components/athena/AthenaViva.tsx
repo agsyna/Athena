@@ -54,6 +54,27 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
     import('agora-rtm').catch(() => {});
   }, []);
 
+  /**
+   * Health beacon for the Chrome side panel.
+   *
+   * The panel embeds this page cross-origin and cannot inspect it, so without a
+   * signal a blank or non-interactive frame is indistinguishable from a working
+   * one. Posting on mount proves React hydrated and event handlers are live;
+   * the panel offers an "open in a tab" escape hatch if it never arrives.
+   */
+  useEffect(() => {
+    if (window.parent === window) return;
+    const beacon = () => window.parent.postMessage({ type: 'athena:ready' }, '*');
+    beacon();
+    // Repeat briefly in case the panel attached its listener after we mounted.
+    const id = setInterval(beacon, 500);
+    const stop = setTimeout(() => clearInterval(id), 4000);
+    return () => {
+      clearInterval(id);
+      clearTimeout(stop);
+    };
+  }, []);
+
   useEffect(() => {
     if (!sessionId) {
       setError('No passage was handed over. Highlight some text and click the Athena icon again.');
@@ -206,7 +227,7 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
       )}
 
       {(phase === 'ready' || phase === 'starting') && session && (
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="athena-scroll flex min-h-0 flex-1 flex-col gap-4 p-4">
           <header>
             <h1 className="athena-mono text-[13px] font-semibold tracking-[0.16em]">
               ATHENA
@@ -216,7 +237,7 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
             </p>
           </header>
 
-          <section className="athena-card athena-scroll max-h-48 min-h-0 flex-1 p-3">
+          <section className="athena-card athena-scroll max-h-40 shrink-0 p-3">
             {session.source_title && (
               <p className="athena-mono mb-2 text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)]">
                 {session.source_title}
@@ -237,7 +258,7 @@ export default function AthenaViva({ sessionId }: { sessionId: string | null }) 
             type="button"
             onClick={handleStart}
             disabled={phase === 'starting'}
-            className="rounded-[10px] px-4 py-2.5 text-[13px] font-medium transition-opacity disabled:opacity-60"
+            className="mt-auto shrink-0 rounded-[10px] px-4 py-2.5 text-[13px] font-medium transition-opacity disabled:opacity-60"
             style={{ background: 'var(--athena-blue)', color: '#08090d' }}
           >
             {phase === 'starting' ? 'Waking Athena…' : 'Start viva'}

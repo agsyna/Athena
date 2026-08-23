@@ -1,16 +1,78 @@
 'use client';
 
 import { useState } from 'react';
+import { groupTopics } from '@/lib/athena/summary';
 import type { Topic } from '@/lib/athena/types';
 
 /**
- * End-of-viva revision summary.
+ * End-of-viva outcome map.
+ *
+ * The markdown file is the session's *record*; this is what the student should
+ * actually read. It resolves the same chips they watched all session into
+ * outcome groups, so the ending is the map settling rather than a new
+ * representation appearing.
+ *
+ * Colour here is a status encoding, not a categorical one, so every state ships
+ * with a label and a mark and is never carried by colour alone. Text stays on
+ * text tokens throughout; the small coloured dot beside a label is what carries
+ * identity.
  *
  * The download is a plain anchor to an endpoint that responds with
  * `Content-Disposition: attachment` rather than a script-generated blob URL,
- * because blob downloads are unreliable inside the extension's side panel.
- * Copy-to-clipboard is offered alongside as a belt-and-braces fallback.
+ * because blob downloads are unreliable inside the extension's surfaces.
  */
+
+type Outcome = 'strong' | 'recovered' | 'shaky' | 'weak' | 'untouched';
+
+const OUTCOME: Record<
+  Outcome,
+  { label: string; color: string; glyph: string; note: string }
+> = {
+  strong: {
+    label: 'Solid',
+    color: 'var(--athena-success)',
+    glyph: '✓',
+    note: 'right first time',
+  },
+  recovered: {
+    label: 'Recovered',
+    color: 'var(--athena-blue)',
+    glyph: '↻',
+    note: 'right on the second pass — not yet solid',
+  },
+  shaky: {
+    label: 'Shaky',
+    color: 'var(--athena-amber)',
+    glyph: '~',
+    note: 'partly there',
+  },
+  // Amber, matching the live map: two warm hues side by side read as noise at
+  // chip size, so "weak" and "shaky" share a colour and are told apart by their
+  // label and their position in the revision order.
+  weak: {
+    label: 'Needs work',
+    color: 'var(--athena-amber)',
+    glyph: '!',
+    note: 'not answered correctly',
+  },
+  untouched: {
+    label: 'Not covered',
+    color: 'var(--athena-text-dim)',
+    glyph: '·',
+    note: 'the session ended first',
+  },
+};
+
+function Dot({ outcome }: { outcome: Outcome }) {
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
+      style={{ background: OUTCOME[outcome].color }}
+    />
+  );
+}
+
 export function SummaryPanel({
   markdown,
   downloadUrl,
@@ -21,10 +83,52 @@ export function SummaryPanel({
   topics: Topic[];
 }) {
   const [copied, setCopied] = useState(false);
+  const [showRecord, setShowRecord] = useState(false);
 
-  const correct = topics.filter((t) => t.status === 'correct').length;
-  const recovered = topics.filter((t) => t.redeemed).length;
-  const weak = topics.filter((t) => t.status === 'wrong' || t.status === 'partial').length;
+  const groups = groupTopics(topics);
+  const total = topics.length || 1;
+
+  // Worst-first, matching the revision order the student is asked to follow.
+  const segments: { outcome: Outcome; items: Topic[] }[] = [
+    { outcome: 'weak', items: groups.weak },
+    { outcome: 'shaky', items: groups.shaky },
+    { outcome: 'recovered', items: groups.recovered },
+    { outcome: 'strong', items: groups.strong },
+    { outcome: 'untouched', items: groups.untouched },
+  ];
+
+  /**
+   * The meter merges the two amber states into one fill. As separate segments
+   * they would sit adjacent in the same hue and read as a single block anyway,
+   * with the 2px gap looking like a rendering artefact rather than a boundary.
+   * The groups below still tell them apart.
+   */
+  const meter: { key: string; label: string; color: string; count: number }[] = [
+    {
+      key: 'revisit',
+      label: 'needs another pass',
+      color: OUTCOME.weak.color,
+      count: groups.weak.length + groups.shaky.length,
+    },
+    {
+      key: 'recovered',
+      label: OUTCOME.recovered.label,
+      color: OUTCOME.recovered.color,
+      count: groups.recovered.length,
+    },
+    {
+      key: 'strong',
+      label: OUTCOME.strong.label,
+      color: OUTCOME.strong.color,
+      count: groups.strong.length,
+    },
+    {
+      key: 'untouched',
+      label: OUTCOME.untouched.label,
+      color: OUTCOME.untouched.color,
+      count: groups.untouched.length,
+    },
+  ].filter((segment) => segment.count > 0);
 
   const handleCopy = async () => {
     try {
@@ -43,31 +147,122 @@ export function SummaryPanel({
           VIVA COMPLETE
         </h1>
         <p className="mt-1 text-[11px] text-[var(--athena-text-dim)]">
-          Your revision summary is ready.
+          {groups.revisionOrder.length === 0
+            ? 'Everything landed first time. Try a harder passage.'
+            : `${groups.revisionOrder.length} of ${topics.length} topics still want another pass.`}
         </p>
       </header>
 
-      <section className="grid shrink-0 grid-cols-3 gap-2" aria-label="Session results">
-        {[
-          { label: 'solid', value: correct, color: 'var(--athena-success)' },
-          { label: 'recovered', value: recovered, color: 'var(--athena-blue)' },
-          { label: 'to revise', value: weak, color: 'var(--athena-amber)' },
-        ].map((stat) => (
-          <div key={stat.label} className="athena-card px-2 py-2.5 text-center">
-            <div className="athena-mono text-[20px] leading-none" style={{ color: stat.color }}>
-              {stat.value}
-            </div>
-            <div className="athena-mono mt-1 text-[9px] uppercase tracking-[0.1em] text-[var(--athena-text-dim)]">
-              {stat.label}
-            </div>
-          </div>
+      {/* Proportion meter: the whole session in one line. 2px surface gaps
+          separate segments so adjacent fills never blend into one another. */}
+      <div
+        className="flex shrink-0 gap-[2px] overflow-hidden rounded-[4px]"
+        role="img"
+        aria-label={meter
+          .map((segment) => `${segment.count} ${segment.label}`)
+          .join(', ')}
+      >
+        {meter.map((segment) => (
+          <div
+            key={segment.key}
+            title={`${segment.count} ${segment.label}`}
+            className="h-2 first:rounded-l-[4px] last:rounded-r-[4px]"
+            style={{
+              width: `${(segment.count / total) * 100}%`,
+              background: segment.color,
+            }}
+          />
         ))}
-      </section>
+      </div>
 
-      <div className="athena-card athena-scroll min-h-0 flex-1 p-3">
-        <pre className="athena-mono whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--athena-text)]">
-          {markdown}
-        </pre>
+      <div className="athena-scroll flex min-h-0 flex-1 flex-col gap-3">
+        {/* What to do next — the actionable half, and the reason this screen
+            exists rather than a file. */}
+        {groups.revisionOrder.length > 0 && (
+          <section className="athena-card shrink-0 p-3">
+            <h2 className="athena-mono text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)]">
+              Focus next, in this order
+            </h2>
+            <ol className="mt-2 flex flex-col gap-1.5">
+              {groups.revisionOrder.map((topic, index) => {
+                const outcome: Outcome = groups.weak.includes(topic)
+                  ? 'weak'
+                  : groups.shaky.includes(topic)
+                    ? 'shaky'
+                    : groups.recovered.includes(topic)
+                      ? 'recovered'
+                      : 'untouched';
+                return (
+                  <li key={topic.name} className="flex items-baseline gap-2 text-[12px]">
+                    <span className="athena-mono w-[14px] shrink-0 text-[10px] text-[var(--athena-text-dim)]">
+                      {index + 1}
+                    </span>
+                    <Dot outcome={outcome} />
+                    <span className="min-w-0 flex-1 text-[var(--athena-text)]">
+                      {topic.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-[var(--athena-text-dim)]">
+                      {OUTCOME[outcome].label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+
+        {/* The rest of the map, grouped. Same chips, now resolved. */}
+        {segments
+          .filter((s) => s.items.length > 0)
+          .map((s) => (
+            <section key={s.outcome} className="shrink-0">
+              <h2 className="flex items-center gap-1.5 text-[10px] text-[var(--athena-text-dim)]">
+                <Dot outcome={s.outcome} />
+                <span className="athena-mono uppercase tracking-[0.12em]">
+                  {OUTCOME[s.outcome].label}
+                </span>
+                <span className="truncate">— {OUTCOME[s.outcome].note}</span>
+              </h2>
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {s.items.map((topic) => (
+                  <li
+                    key={topic.name}
+                    className="athena-chip"
+                    data-status={
+                      s.outcome === 'strong' || s.outcome === 'recovered'
+                        ? 'correct'
+                        : s.outcome === 'untouched'
+                          ? 'unattempted'
+                          : s.outcome === 'shaky'
+                            ? 'partial'
+                            : 'wrong'
+                    }
+                  >
+                    {topic.name}
+                    {topic.redeemed && <span aria-hidden> {OUTCOME.recovered.glyph}</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+
+        {/* The full written record stays available, but it is no longer the
+            first thing the student is asked to read. */}
+        <section className="shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowRecord((open) => !open)}
+            aria-expanded={showRecord}
+            className="athena-mono w-full text-left text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)] transition-colors hover:text-[var(--athena-text)]"
+          >
+            {showRecord ? '▾' : '▸'} Full written record
+          </button>
+          {showRecord && (
+            <pre className="athena-card athena-mono mt-2 whitespace-pre-wrap break-words p-3 text-[11px] leading-relaxed text-[var(--athena-text)]">
+              {markdown}
+            </pre>
+          )}
+        </section>
       </div>
 
       <footer className="flex shrink-0 flex-col gap-2">

@@ -52,15 +52,34 @@ async function stash(capture, tab) {
   });
 }
 
-async function openViva(tab) {
-  const capture = await captureFromTab(tab);
-  await stash(capture, tab);
-  // Must be called in the same turn as the user gesture.
-  await chrome.sidePanel.open({ tabId: tab.id });
+/**
+ * The capture belonging to the most recent click, while it is still running.
+ *
+ * `chrome.sidePanel.open()` may only be called in the same turn as the gesture
+ * that triggered it, and a single `await` beforehand already spends that
+ * gesture. So the panel is opened first and the selection is captured after,
+ * which means the panel can ask for the selection before it has been written.
+ * Holding the promise here lets `get-selection` wait for the capture belonging
+ * to this click instead of answering with the previous one.
+ */
+let pendingStash = null;
+
+function trackStash(work) {
+  pendingStash = work.catch((error) => console.error('[athena]', error));
+  return pendingStash;
+}
+
+/** Opens the panel for `tab`. Call this before anything that awaits. */
+function openPanel(tab) {
+  chrome.sidePanel
+    .open({ tabId: tab.id })
+    .catch((error) => console.error('[athena]', error));
 }
 
 chrome.action.onClicked.addListener((tab) => {
-  openViva(tab).catch((error) => console.error('[athena]', error));
+  if (!tab?.id) return;
+  openPanel(tab);
+  trackStash(captureFromTab(tab).then((capture) => stash(capture, tab)));
 });
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -75,16 +94,17 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== CONTEXT_MENU_ID || !tab?.id) return;
   // The context menu hands us the selection directly, which also covers frames
   // where a scripting injection would return the parent document's selection.
-  stash(
-    {
-      text: info.selectionText ?? '',
-      title: tab.title ?? '',
-      url: info.pageUrl ?? tab.url ?? '',
-    },
-    tab,
-  )
-    .then(() => chrome.sidePanel.open({ tabId: tab.id }))
-    .catch((error) => console.error('[athena]', error));
+  openPanel(tab);
+  trackStash(
+    stash(
+      {
+        text: info.selectionText ?? '',
+        title: tab.title ?? '',
+        url: info.pageUrl ?? tab.url ?? '',
+      },
+      tab,
+    ),
+  );
 });
 
 /**
@@ -152,9 +172,13 @@ chrome.windows.onRemoved.addListener((windowId) => {
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'athena:get-selection') {
-    chrome.storage.session.get(SELECTION_KEY).then((data) => {
+    (async () => {
+      // Wait for the click's own capture, which is still in flight whenever the
+      // panel mounts faster than the page can be read.
+      await pendingStash;
+      const data = await chrome.storage.session.get(SELECTION_KEY);
       sendResponse(data[SELECTION_KEY] ?? null);
-    });
+    })();
     return true; // keep the channel open for the async response
   }
 

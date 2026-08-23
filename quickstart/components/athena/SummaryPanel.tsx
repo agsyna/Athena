@@ -63,6 +63,58 @@ const OUTCOME: Record<
   },
 };
 
+/**
+ * How full each bubble reads.
+ *
+ * This is a completion fraction, not an area comparison — the circles are all
+ * the same size on purpose. There is no honest magnitude to map onto radius
+ * here (a topic is not "bigger" than another), and sizing them would invent
+ * one. "Wrong" keeps a sliver rather than reading empty, because attempting a
+ * topic and missing it is not the same as never being asked.
+ */
+const FILL: Record<Outcome, number> = {
+  strong: 1,
+  recovered: 1,
+  shaky: 0.5,
+  weak: 0.16,
+  untouched: 0,
+};
+
+function Bubble({ topic, outcome }: { topic: Topic; outcome: Outcome }) {
+  const { color, label, note } = OUTCOME[outcome];
+  const fill = FILL[outcome];
+
+  return (
+    <li
+      title={`${topic.name} — ${label}, ${note}`}
+      className="relative flex h-[86px] w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-full border text-center"
+      style={{
+        borderColor: fill === 0 ? 'var(--athena-border)' : color,
+        background: 'var(--athena-surface)',
+      }}
+    >
+      {/* Fills from the bottom, flat-topped, like a filling vessel. */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-0"
+        style={{ height: `${fill * 100}%`, background: color, opacity: 0.22 }}
+      />
+      <span className="relative z-10 px-1.5 text-[10px] leading-tight text-[var(--athena-text)]">
+        {topic.name}
+      </span>
+      {topic.redeemed && (
+        <span
+          aria-hidden
+          className="absolute right-2 top-2 z-10 text-[10px]"
+          style={{ color }}
+        >
+          {OUTCOME.recovered.glyph}
+        </span>
+      )}
+    </li>
+  );
+}
+
 function Dot({ outcome }: { outcome: Outcome }) {
   return (
     <span
@@ -245,6 +297,26 @@ export function SummaryPanel({
               </ul>
             </section>
           ))}
+
+        {/* The same topics once more, as a single glance. Redundant with the
+            groups above by design — the groups are for reading, this is the
+            shape of the session you remember afterwards. */}
+        <section className="shrink-0">
+          <h2 className="athena-mono text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)]">
+            Your map
+          </h2>
+          <ul className="mt-2 flex flex-wrap justify-center gap-2">
+            {segments.flatMap((segment) =>
+              segment.items.map((topic) => (
+                <Bubble key={topic.name} topic={topic} outcome={segment.outcome} />
+              )),
+            )}
+          </ul>
+          <p className="mt-2 text-center text-[10px] leading-tight text-[var(--athena-text-dim)]">
+            Fuller means better understood. All one size — no topic counts for
+            more than another.
+          </p>
+        </section>
 
         {/* The full written record stays available, but it is no longer the
             first thing the student is asked to read. */}

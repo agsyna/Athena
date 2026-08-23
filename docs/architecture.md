@@ -8,7 +8,7 @@ flowchart TB
         page["Any web page<br/><i>the student's study material</i>"]
         sw["Service worker<br/><code>background.js</code>"]
         panel["Side panel<br/><code>sidepanel.js</code>"]
-        iframe["Viva surface<br/><i>iframe → localhost:3000/viva</i>"]
+        vivawin["Viva window<br/><i>own popup → localhost:3000/viva</i>"]
     end
 
     subgraph app["Athena app — Next.js (localhost:3000)"]
@@ -36,21 +36,21 @@ flowchart TB
     sw -->|"chrome.storage.session"| panel
     panel -->|"POST passage"| session
     session --> store
-    panel -->|"embeds ?s=id"| iframe
+    panel -->|"opens window ?s=id&a=1"| vivawin
 
-    iframe --> token
-    iframe -->|"POST session_id"| start
+    vivawin --> token
+    vivawin -->|"POST session_id"| start
     start --> store
     start -->|"agora-agents SDK"| engine
     engine --> stt --> llm --> tts
     engine -->|"agent joins"| rtc
     engine -->|"publishes"| rtm
 
-    iframe <-->|"mic / audio"| rtc
-    rtm -->|"TRANSCRIPT_UPDATED<br/>AGENT_STATE_CHANGED"| iframe
-    iframe -->|"sendText / interrupt"| rtm
+    vivawin <-->|"mic / audio"| rtc
+    rtm -->|"TRANSCRIPT_UPDATED<br/>AGENT_STATE_CHANGED"| vivawin
+    vivawin -->|"sendText / interrupt"| rtm
 
-    iframe -->|"final state"| summary
+    vivawin -->|"final state"| summary
     summary --> store
 ```
 
@@ -62,7 +62,7 @@ flowchart TB
 
 **The passage travels by id, not by URL.** A highlighted passage runs to thousands of characters, past what is safe in a query string. The extension POSTs it and passes an 8-character id.
 
-**Microphone permission is delegated, not claimed.** The side panel embeds the viva with `allow="microphone"`, so the prompt comes from `http://localhost:3000` — a normal secure origin Chrome will reliably prompt for — rather than from the extension surface, where microphone prompts are inconsistent.
+**The viva gets its own window, and this is not a stylistic choice.** It was embedded in the side panel first. A cross-origin frame inside a `chrome-extension://` page is a separate microphone permission context — Chrome neither inherits a grant already given to `localhost:3000` nor reliably lets the resulting prompt be answered, returning `NotAllowedError: Permission dismissed`. A top-level window prompts normally and the grant persists. The service worker parks it against the right edge of the browser window so it still sits beside the material.
 
 ## Call sequence for one viva
 
@@ -81,9 +81,9 @@ sequenceDiagram
     SW->>P: stash in chrome.storage.session, open panel
     P->>A: POST /api/athena/session {passage}
     A-->>P: {session_id}
-    P->>P: embed /viva?s=session_id
+    P->>SW: open window /viva?s=session_id&a=1
+    SW->>A: window opens, viva auto-starts
 
-    S->>A: clicks "Start viva"
     A->>A: GET /api/generate-agora-token
     par
         A->>E: POST /join — Athena prompt, skipPatterns [5]

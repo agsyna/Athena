@@ -61,26 +61,6 @@ export default function AthenaViva({
     import('agora-rtm').catch(() => {});
   }, []);
 
-  /**
-   * Health beacon for the Chrome side panel.
-   *
-   * The panel embeds this page cross-origin and cannot inspect it, so without a
-   * signal a blank or non-interactive frame is indistinguishable from a working
-   * one. Posting on mount proves React hydrated and event handlers are live;
-   * the panel offers an "open in a tab" escape hatch if it never arrives.
-   */
-  useEffect(() => {
-    if (window.parent === window) return;
-    const beacon = () => window.parent.postMessage({ type: 'athena:ready' }, '*');
-    beacon();
-    // Repeat briefly in case the panel attached its listener after we mounted.
-    const id = setInterval(beacon, 500);
-    const stop = setTimeout(() => clearInterval(id), 4000);
-    return () => {
-      clearInterval(id);
-      clearTimeout(stop);
-    };
-  }, []);
 
   useEffect(() => {
     if (!sessionId) {
@@ -201,6 +181,27 @@ export default function AthenaViva({
     },
     [agoraData],
   );
+
+  /**
+   * Closing the window is a legitimate way to end a viva, and the unload path
+   * is too short for a normal fetch. sendBeacon hands the request to the
+   * browser to deliver after the page is gone, which stops the agent instead of
+   * leaving it to idle out on billed minutes.
+   */
+  useEffect(() => {
+    const agentId = agoraData?.agentId;
+    if (!agentId) return;
+
+    const stop = () => {
+      navigator.sendBeacon(
+        '/api/stop-conversation',
+        new Blob([JSON.stringify({ agent_id: agentId })], { type: 'application/json' }),
+      );
+    };
+
+    window.addEventListener('pagehide', stop);
+    return () => window.removeEventListener('pagehide', stop);
+  }, [agoraData?.agentId]);
 
   const handleEnd = useCallback(async () => {
     if (agoraData?.agentId) {

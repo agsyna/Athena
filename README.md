@@ -61,9 +61,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 ```
 ┌──────────────────────────────┐
 │  Chrome extension (MV3)      │
-│  · service worker — captures a highlighted passage (optional accelerator)
+│  · service worker — captures a highlighted passage (optional accelerator);
+│                     opens and tracks the viva window
 │  · side panel   — paste box; exchanges the passage for a session id,
-│                   then embeds the viva
+│                   then launches the viva beside your material
 └───────────────┬──────────────┘
                 │  POST /api/athena/session   (passage → session id)
                 ▼
@@ -85,7 +86,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call
 
 **Why a server at all:** the Agora App Certificate signs RTC/RTM tokens and authenticates the ConvoAI REST calls. It is a secret and can never sit in extension code. The Next.js app is that boundary.
 
-**Why the viva UI is served by the app rather than bundled into the extension:** the official quickstart's client carries a lot of hard-won correctness — StrictMode-safe join, microphone track lifecycle, RTM identity matching the token subject, transcript UID remapping. Re-implementing that inside an MV3 bundle would risk all of it for no user-visible gain. The side panel embeds the page instead, with `allow="microphone"` delegating the permission to `localhost`, an origin Chrome will reliably prompt for.
+**Why the viva UI is served by the app rather than bundled into the extension:** the official quickstart's client carries a lot of hard-won correctness — StrictMode-safe join, microphone track lifecycle, RTM identity matching the token subject, transcript UID remapping. Re-implementing that inside an MV3 bundle would risk all of it for no user-visible gain.
+
+**Why the viva runs in its own window rather than inside the side panel.** It was embedded at first, and the microphone never worked. A cross-origin frame inside a `chrome-extension://` page is a *separate microphone permission context*: Chrome will not inherit a grant already given to `localhost:3000` in a normal tab, and the prompt it raises cannot reliably be answered from the side panel — it comes back as `NotAllowedError: Permission dismissed`. A real top-level window prompts normally and the grant persists. The panel opens it parked against the right edge of the browser window, so it still sits beside the material being studied.
 
 ---
 
@@ -136,7 +139,7 @@ pnpm dev         # http://localhost:3000
 2. Enable **Developer mode**
 3. **Load unpacked** → select the [`extension/`](extension/) folder
 
-**Try it:** click the Athena icon to open the side panel, paste a few paragraphs into the box, and click **Start viva**. Grant microphone access when Chrome asks.
+**Try it:** click the Athena icon to open the side panel, paste a few paragraphs into the box, and click **Start viva**. Athena opens in her own window beside your material — grant microphone access when Chrome asks.
 
 Or use the shortcut: open <http://localhost:3000/demo.html>, highlight a section, then click the Athena icon — the highlighted text lands in the box ready to go.
 
@@ -150,8 +153,8 @@ Or use the shortcut: open <http://localhost:3000/demo.html>, highlight a section
 athena/
 ├── extension/              Chrome extension (MV3) — capture + control surface
 │   ├── manifest.json
-│   ├── background.js       captures the selection on the user gesture
-│   └── sidepanel.{html,js,css}   paste box + embedded viva
+│   ├── background.js       captures the selection; owns the viva window
+│   └── sidepanel.{html,js,css}   paste box + launcher
 ├── quickstart/             the Athena app — official Agora Next.js quickstart, extended
 │   ├── app/viva/           the viva surface
 │   ├── app/api/athena/     session, start, summary
@@ -210,6 +213,7 @@ Athena is a **study aid, not a graded assessment.** That sentence is on screen t
 - **Single user, single machine.** Sessions live in an in-memory `Map` and do not survive a server restart or scale across replicas.
 - **One speaker.** No diarisation — a second voice in the room is treated as the student.
 - **English only**, per the ASR configuration.
+- **The viva is a separate window, not an embedded panel.** Forced by Chrome's microphone permission model, not a preference — see the architecture note above. Closing that window ends the viva.
 - **Highlight capture is best-effort.** Chrome blocks injection on `chrome://` pages, the Web Store, and the built-in PDF viewer, and a selection can be collapsed before the panel reads it. Pasting is the primary path and is unaffected.
 - **CORS is permissive by origin scheme** (`chrome-extension://`, `localhost`) because unpacked extension IDs are not known ahead of time. Fine for a local dev server; not suitable for public deployment as written.
 - **The control channel depends on model compliance.** `gpt-4o-mini` occasionally omits or malforms the payload. The parser is tolerant — a dropped payload means a chip updates one turn later, never a crash — but a chip can lag the conversation.

@@ -1,12 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Athena — viva buddy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Highlight any passage and have a live, adaptive spoken viva about it.",
-  "permissions": ["sidePanel", "scripting", "storage", "activeTab", "contextMenus"],
-  "host_permissions": ["http://localhost:3000/*"],
+  "permissions": ["sidePanel", "scripting", "storage", "activeTab", "contextMenus", "tabs"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.agora.io/*",
+    "https://*.agoralab.co/*",
+    "https://*.sd-rtn.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "action": {
     "default_title": "Start an Athena viva on the selected text",

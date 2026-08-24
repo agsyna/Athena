@@ -8,15 +8,10 @@ export async function OPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
-/**
- * Builds the revision summary for a finished viva and stores it on the session.
- *
- * Two-step by design: the browser POSTs the final state here, then links to the
- * GET below to download the file. A plain link to a URL that responds with
- * `Content-Disposition: attachment` is the one download path that survives being
- * rendered inside the extension's side panel, where script-initiated blob
- * downloads are unreliable.
- */
+// Builds the summary and stores it on the session. Two steps on purpose: the
+// browser POSTs the final state here, then links to the GET to download it.
+// A plain link to a Content-Disposition: attachment URL is the download path
+// that actually works inside the side panel, where blob downloads are flaky.
 export async function POST(request: NextRequest) {
   let body: SummaryRequest;
   try {

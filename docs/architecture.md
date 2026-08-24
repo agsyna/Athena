@@ -1,4 +1,4 @@
-# Athena — system architecture
+# Athena system architecture
 
 ## Components
 
@@ -8,14 +8,14 @@ flowchart TB
         page["Any web page<br/><i>the student's study material</i>"]
         sw["Service worker<br/><code>background.js</code>"]
         panel["Side panel<br/><code>sidepanel.js</code>"]
-        vivawin["Viva window<br/><i>own popup → localhost:3000/viva</i>"]
+        viva["Viva session<br/><code>viva.js</code>, in the panel"]
     end
 
-    subgraph app["Athena app — Next.js (localhost:3000)"]
+    subgraph app["Next.js app (localhost:3000)"]
         session["<code>/api/athena/session</code><br/>passage → session id"]
         start["<code>/api/athena/start</code><br/>builds prompt, starts agent"]
-        token["<code>/api/generate-agora-token</code><br/><i>quickstart, unchanged</i>"]
-        stop["<code>/api/stop-conversation</code><br/><i>quickstart, unchanged</i>"]
+        token["<code>/api/athena/token</code><br/>RTC + RTM token"]
+        stop["<code>/api/athena/stop</code><br/>stops the agent"]
         summary["<code>/api/athena/summary</code><br/>renders the .md file"]
         store[("In-memory<br/>session store")]
     end
@@ -26,7 +26,7 @@ flowchart TB
         rtm["RTM channel<br/><i>transcripts, agent state</i>"]
     end
 
-    subgraph vendors["Resold through Agora — no keys of ours"]
+    subgraph vendors["Resold through Agora, no separate keys"]
         stt["Deepgram nova-3"]
         llm["OpenAI gpt-4o-mini"]
         tts["MiniMax speech_2_6_turbo<br/><b>skip_patterns: [5]</b>"]
@@ -36,33 +36,33 @@ flowchart TB
     sw -->|"chrome.storage.session"| panel
     panel -->|"POST passage"| session
     session --> store
-    panel -->|"opens window ?s=id&a=1"| vivawin
+    panel --> viva
 
-    vivawin --> token
-    vivawin -->|"POST session_id"| start
+    viva --> token
+    viva -->|"POST session_id"| start
     start --> store
     start -->|"agora-agents SDK"| engine
     engine --> stt --> llm --> tts
     engine -->|"agent joins"| rtc
     engine -->|"publishes"| rtm
 
-    vivawin <-->|"mic / audio"| rtc
-    rtm -->|"TRANSCRIPT_UPDATED<br/>AGENT_STATE_CHANGED"| vivawin
-    vivawin -->|"sendText / interrupt"| rtm
+    viva <-->|"mic / audio"| rtc
+    rtm -->|"TRANSCRIPT_UPDATED<br/>AGENT_STATE_CHANGED"| viva
+    viva -->|"sendText / interrupt"| rtm
 
-    vivawin -->|"final state"| summary
+    viva -->|"final state"| summary
     summary --> store
 ```
 
 ## Why the pieces sit where they do
 
-**The App Certificate never leaves the server.** It signs RTC and RTM tokens and authenticates ConvoAI REST calls. A Chrome extension is readable by anyone who installs it, so the Next.js app is the trust boundary. This is why a backend is structural here, not optional.
+**The App Certificate never leaves the server.** It signs RTC and RTM tokens and authenticates the ConvoAI REST calls. A Chrome extension is readable by anyone who installs it, so the Next.js app is the trust boundary. That's why there's a backend at all.
 
-**The extension captures, the app converses.** Selection capture needs `activeTab`, granted only on a user gesture, so it happens in the service worker at click time. Everything voice-related stays in the app, which already contains the official quickstart's correctness work — StrictMode-safe join, microphone track lifecycle, RTM identity matching the token subject, transcript UID remapping.
+**Capture happens in the service worker.** Reading the selection needs `activeTab`, which is only granted on a user gesture, so it has to happen at click time in the worker. The panel has no access to the page itself.
 
-**The passage travels by id, not by URL.** A highlighted passage runs to thousands of characters, past what is safe in a query string. The extension POSTs it and passes an 8-character id.
+**The passage travels by id, not in the URL.** A highlighted passage runs to thousands of characters, past what's safe in a query string, so the extension POSTs it and gets back an 8-character id.
 
-**The viva gets its own window, and this is not a stylistic choice.** It was embedded in the side panel first. A cross-origin frame inside a `chrome-extension://` page is a separate microphone permission context — Chrome neither inherits a grant already given to `localhost:3000` nor reliably lets the resulting prompt be answered, returning `NotAllowedError: Permission dismissed`. A top-level window prompts normally and the grant persists. The service worker parks it against the right edge of the browser window so it still sits beside the material.
+**The viva runs in the panel, on the extension's own origin.** The first version embedded the Next.js page in an iframe and the microphone never worked: a cross-origin frame inside a `chrome-extension://` page is its own permission context, so Chrome doesn't inherit a grant given to `localhost:3000`, and the prompt it raises comes back as `NotAllowedError: Permission dismissed`. Vendoring the Agora web SDKs removes the frame. The panel asks for the extension's microphone once, in a normal tab, and keeps it. The page at `/viva` still exists for a standalone tab.
 
 ## Call sequence for one viva
 
@@ -81,42 +81,40 @@ sequenceDiagram
     SW->>P: stash in chrome.storage.session, open panel
     P->>A: POST /api/athena/session {passage}
     A-->>P: {session_id}
-    P->>SW: open window /viva?s=session_id&a=1
-    SW->>A: window opens, viva auto-starts
 
-    A->>A: GET /api/generate-agora-token
+    P->>A: GET /api/athena/token
     par
-        A->>E: POST /join — Athena prompt, skipPatterns [5]
-        E-->>A: {agent_id, RUNNING}
+        P->>E: POST /api/athena/start, skipPatterns [5]
+        E-->>P: {agent_id, RUNNING}
     and
-        A->>C: RTM login + subscribe
+        P->>C: RTM login + subscribe
     end
-    A->>C: RTC join + publish microphone
+    P->>C: RTC join + publish microphone
     E->>C: agent joins the channel
     E->>S: greeting (TTS)
 
-    A->>C: sendText "[athena:system] begin"
-    Note over E: Athena picks 4–6 topics from the passage
+    P->>C: sendText "[athena:system] begin"
+    Note over E: Athena picks 4-6 topics from the passage
     E->>C: "…first question… {topics:[…],focus:'…'}"
-    C->>A: TRANSCRIPT_UPDATED (full text, braces intact)
-    Note over A: TTS spoke only the question —<br/>skip_patterns stripped the braces
-    A->>A: parse → render chips
+    C->>P: TRANSCRIPT_UPDATED (full text, braces intact)
+    Note over P: TTS spoke only the question;<br/>skip_patterns stripped the braces
+    P->>P: parse → render chips
 
     loop each exchange
         S->>C: spoken answer
         E->>C: "…next question… {focus:…, mark:{topic,result}}"
-        C->>A: TRANSCRIPT_UPDATED
-        A->>A: chip flips — green / amber, with a pulse
+        C->>P: TRANSCRIPT_UPDATED
+        P->>P: chip flips green or amber, with a pulse
     end
 
-    Note over E,S: Athena returns to an amber topic;<br/>a correct answer flips it green — the recovery beat
+    Note over E,S: Athena returns to an amber topic;<br/>a correct answer flips it green
 
-    S->>A: "End viva"
-    A->>E: POST /stop-conversation
-    A->>A: POST /api/athena/summary → downloadable .md
+    S->>P: "End viva"
+    P->>A: POST /api/athena/stop
+    P->>A: POST /api/athena/summary → downloadable .md
 ```
 
-## The silent control channel
+## The control channel
 
 ```mermaid
 flowchart LR
@@ -136,31 +134,31 @@ flowchart LR
     PA -->|"spoken"| CAP
 ```
 
-Per the [join endpoint spec](https://docs-md.agora.io/en/conversational-ai/rest-api/agent/join.md), `skip_patterns` value `5` skips content in curly braces, and the real-time transcript *"restores the complete text after each sentence finishes."* The student hears one thing; the app sees both.
+Per the [join endpoint spec](https://docs-md.agora.io/en/conversational-ai/rest-api/agent/join.md), `skip_patterns` value `5` skips content in curly braces, and the real-time transcript *"restores the complete text after each sentence finishes."* The student hears one thing, the app sees both.
 
-**Only one brace pair per turn is requested.** The engine documents that it skips *"the first outermost bracket pair"*, so a second object in the same turn risks being read aloud. The prompt enforces one object; the parser takes the last complete span if the model disobeys.
+Only one brace pair per turn is asked for. The engine skips *"the first outermost bracket pair"*, so a second object in the same turn risks being read aloud. The prompt asks for one, and the parser takes the last complete span if the model ignores that.
 
 ## Token model
 
-Both tokens come from the quickstart's unmodified `/api/generate-agora-token`, built with `RtcTokenBuilder.buildTokenWithRtm` — one credential covering RTC and RTM.
+`/api/athena/token` builds both with `RtcTokenBuilder.buildTokenWithRtm`, so one credential covers RTC and RTM. It's `/api/generate-agora-token` with CORS added and the App ID in the response.
 
 | Identity | Token subject | Notes |
 |---|---|---|
-| Student (browser) | `uid` from the token response | RTM must log in with **this exact identity** — a mismatch surfaces as a generic "failed to start conversation" |
-| Athena (agent) | `agent_rtc_uid` = `"123456"` (string) | `remoteUids` restricts her to the student's audio only |
+| Student (browser) | `uid` from the token response | RTM has to log in with this exact identity. A mismatch shows up as a generic "failed to start conversation" |
+| Athena (agent) | `agent_rtc_uid` = `"123456"` (string) | `remoteUids` restricts her to the student's audio |
 
 Renewal on `token-privilege-will-expire` fetches RTC and RTM tokens in parallel and renews both.
 
-## Failure modes and what the student sees
+## Failure modes
 
 | Failure | Behaviour |
 |---|---|
 | Athena app not running | Panel: "Athena server is not reachable", with the command to start it |
 | Page cannot be injected (`chrome://`, PDF viewer, Web Store) | Panel explains why and suggests the right-click menu |
 | Selection too short | Panel states the minimum and asks for more |
-| Session expired | Viva page asks the student to re-highlight |
-| Agent fails to join | Error with a retry button; nothing hangs |
-| Pipeline error mid-viva | `AGENT_ERROR` / `MESSAGE_ERROR` render in an alert strip; the session continues |
+| Session expired | Panel asks the student to paste the passage again |
+| Agent fails to join | Error with a retry, and a watchdog fires if RTM goes quiet |
+| Pipeline error mid-viva | `AGENT_ERROR` / `MESSAGE_ERROR` show in an alert strip, and the session continues |
 | Token renewal fails | Warning shown before the session drops |
-| Malformed control payload | Dropped silently; the chip updates on the next valid payload |
+| Malformed control payload | Dropped, and the chip updates on the next valid payload |
 | Summary generation fails | Session still ends cleanly, with a message |

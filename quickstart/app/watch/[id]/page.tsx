@@ -2,18 +2,12 @@ import { Suspense } from 'react';
 import { WatchView } from '@/components/athena/WatchView';
 
 export const metadata = {
-  title: 'Athena — watching a viva',
+  title: 'Watching an Athena viva',
 };
 
-/**
- * The tutor's screen.
- *
- * Read-only by construction: this page never receives the passage, the
- * transcript, or an RTC credential. What a watcher can see is the assessment
- * forming, and the one thing they can do is ask Athena to go back over a topic.
- * That is deliberate — a viva is the student's to sit, and an observer who can
- * read the transcript is a different, much more invasive product.
- */
+// Read-only tutor view. This page never gets the passage, the transcript or an
+// RTC credential: a watcher sees the map forming, and the only thing they can
+// do is ask Athena to go back over a topic.
 export default async function WatchPage({
   params,
 }: {

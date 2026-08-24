@@ -1,13 +1,7 @@
-// Core domain types for Athena — the adaptive spoken viva.
+// Shared types for the viva.
 
-/**
- * Lifecycle of a single topic chip in the understanding map.
- *
- * `partial` is the "struggling" state the plan calls amber: the student
- * showed some grasp but not enough to move on. It is the state Athena
- * deliberately circles back to, and the one that produces the recovery
- * moment when it flips to `correct`.
- */
+// State of one chip in the understanding map. `partial` is the amber case:
+// some grasp, not enough to move on. That's what Athena circles back to.
 export type TopicStatus =
   | 'unattempted'
   | 'active'
@@ -18,7 +12,7 @@ export type TopicStatus =
 export interface Topic {
   name: string;
   status: TopicStatus;
-  /** How many times Athena has marked this topic. >1 means it was revisited. */
+  /** Times this topic has been marked. More than one means it was revisited. */
   attempts: number;
   /** True once a wrong/partial topic has been re-answered correctly. */
   redeemed: boolean;
@@ -30,21 +24,15 @@ export interface TranscriptTurn {
   text: string;
 }
 
-/**
- * Server-side session record. Created when the extension posts a passage,
- * before any RTC channel exists, so the passage never has to travel through
- * a URL parameter.
- */
+// Created when the extension posts a passage, before any RTC channel exists,
+// so the passage never has to go through a URL parameter.
 export interface AthenaSession {
   id: string;
   passage: string;
   sourceTitle?: string;
   sourceUrl?: string;
   createdAt: number;
-  /**
-   * Topics the student came back to revise, carried from the extension's
-   * revision view. Present only on a session started from there.
-   */
+  /** Set only on a session started from the extension's revision view. */
   focusTopics?: string[];
   agentId?: string;
   channel?: string;
@@ -52,24 +40,19 @@ export interface AthenaSession {
   summary?: string;
 
   /**
-   * Live understanding map, mirrored from the viva window.
-   *
-   * The viva itself never reads this back — it is written so a second screen
-   * can watch the same assessment as it happens. A tutor on another machine
-   * sees the chips settle without being in the room or in the channel.
+   * Understanding map mirrored from the viva. Write-only from the viva's side;
+   * it exists so a second screen can watch the session as it happens.
    */
   live?: LiveState;
 
   /**
-   * A topic a watcher has asked Athena to return to, waiting to be collected.
-   *
-   * Cleared the moment the viva window picks it up, so one press produces one
-   * intervention. This is the teacher's hand on the session.
+   * A topic a watcher asked Athena to go back to. Cleared as soon as the viva
+   * picks it up, so one press means one intervention.
    */
   nudge?: { topic: string; at: number };
 }
 
-/** What the watch view renders. Mirrored from the viva on a short interval. */
+/** What the watch page renders, mirrored from the viva on a short interval. */
 export interface LiveState {
   topics: Topic[];
   /** Last thing asked about that the passage does not cover, if any. */

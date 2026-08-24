@@ -1,26 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { groupTopics } from '@/lib/athena/summary';
 import type { Topic } from '@/lib/athena/types';
 
-/**
- * End-of-viva outcome map.
- *
- * The markdown file is the session's *record*; this is what the student should
- * actually read. It resolves the same chips they watched all session into
- * outcome groups, so the ending is the map settling rather than a new
- * representation appearing.
- *
- * Colour here is a status encoding, not a categorical one, so every state ships
- * with a label and a mark and is never carried by colour alone. Text stays on
- * text tokens throughout; the small coloured dot beside a label is what carries
- * identity.
- *
- * The download is a plain anchor to an endpoint that responds with
- * `Content-Disposition: attachment` rather than a script-generated blob URL,
- * because blob downloads are unreliable inside the extension's surfaces.
- */
+// End-of-viva screen. The markdown file is the record; this is the part meant
+// to be read. It resolves the same chips from the live map into outcome groups.
+//
+// Colour is a status encoding, so every state also has a label and a glyph and
+// is never carried by colour alone.
+//
+// The download is a plain anchor to a Content-Disposition: attachment endpoint,
+// not a blob URL, since blob downloads are unreliable in the extension.
 
 type Outcome = 'strong' | 'recovered' | 'shaky' | 'weak' | 'untouched';
 
@@ -38,7 +30,7 @@ const OUTCOME: Record<
     label: 'Recovered',
     color: 'var(--athena-blue)',
     glyph: '↻',
-    note: 'right on the second pass — not yet solid',
+    note: 'right on the second pass, not yet solid',
   },
   shaky: {
     label: 'Shaky',
@@ -46,9 +38,8 @@ const OUTCOME: Record<
     glyph: '~',
     note: 'partly there',
   },
-  // Amber, matching the live map: two warm hues side by side read as noise at
-  // chip size, so "weak" and "shaky" share a colour and are told apart by their
-  // label and their position in the revision order.
+  // Amber, same as the live map. Two warm hues at chip size just look like
+  // noise, so weak and shaky share a colour and differ by label and order.
   weak: {
     label: 'Needs work',
     color: 'var(--athena-amber)',
@@ -63,15 +54,9 @@ const OUTCOME: Record<
   },
 };
 
-/**
- * How full each bubble reads.
- *
- * This is a completion fraction, not an area comparison — the circles are all
- * the same size on purpose. There is no honest magnitude to map onto radius
- * here (a topic is not "bigger" than another), and sizing them would invent
- * one. "Wrong" keeps a sliver rather than reading empty, because attempting a
- * topic and missing it is not the same as never being asked.
- */
+// Fill is a completion fraction, not an area comparison. Size only flexes
+// enough to fit longer labels. "Wrong" keeps a sliver rather than reading
+// empty, since being asked and missing isn't the same as never being asked.
 const FILL: Record<Outcome, number> = {
   strong: 1,
   recovered: 1,
@@ -80,20 +65,109 @@ const FILL: Record<Outcome, number> = {
   untouched: 0,
 };
 
-function Bubble({ topic, outcome }: { topic: Topic; outcome: Outcome }) {
+const BUBBLE_CANVAS = { width: 360, height: 250 };
+
+interface BubbleItem {
+  id: number;
+  topic: Topic;
+  outcome: Outcome;
+}
+
+interface BubblePlacement extends BubbleItem {
+  x: number;
+  y: number;
+  size: number;
+}
+
+function bubbleSize(topic: Topic): number {
+  const extra = Math.min(18, Math.max(0, topic.name.length - 8) * 1.5);
+  return 48 + extra;
+}
+
+function layoutBubbles(items: BubbleItem[]): BubblePlacement[] {
+  const { width, height } = BUBBLE_CANVAS;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const sorted = [...items].sort((a, b) => bubbleSize(b.topic) - bubbleSize(a.topic));
+  const placed: BubblePlacement[] = [];
+  const density = items.length > 42 ? 0.76 : items.length > 26 ? 0.86 : 1;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const item = sorted[index];
+    const size = bubbleSize(item.topic) * density;
+    let best = {
+      x: centerX - size / 2,
+      y: centerY - size / 2,
+    };
+
+    if (index > 0) {
+      let found = false;
+
+      for (let radius = 10; radius < 185 && !found; radius += 5) {
+        const steps = Math.max(12, Math.ceil(radius / 5));
+
+        for (let step = 0; step < steps; step += 1) {
+          const angle = (index * 5 + step) * goldenAngle;
+          const x = centerX + Math.cos(angle) * radius - size / 2;
+          const y = centerY + Math.sin(angle) * radius * 0.72 - size / 2;
+          const cx = x + size / 2;
+          const cy = y + size / 2;
+          const inside =
+            x >= 0 &&
+            y >= 0 &&
+            x + size <= width &&
+            y + size <= height &&
+            ((cx - centerX) / 175) ** 2 + ((cy - centerY) / 118) ** 2 <= 1;
+          const clear = placed.every((other) => {
+            const dx = cx - (other.x + other.size / 2);
+            const dy = cy - (other.y + other.size / 2);
+            return Math.hypot(dx, dy) > (size + other.size) / 2 - 4;
+          });
+
+          if (inside && clear) {
+            best = { x, y };
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        const angle = index * goldenAngle;
+        const radius = Math.min(166, 18 + index * 4.2);
+        best = {
+          x: Math.min(width - size, Math.max(0, centerX + Math.cos(angle) * radius - size / 2)),
+          y: Math.min(
+            height - size,
+            Math.max(0, centerY + Math.sin(angle) * radius * 0.72 - size / 2),
+          ),
+        };
+      }
+    }
+
+    placed.push({ ...item, ...best, size });
+  }
+
+  const byId = new Map(placed.map((bubble) => [bubble.id, bubble]));
+  return items.map((item) => byId.get(item.id) ?? { ...item, x: 0, y: 0, size: 48 });
+}
+
+function Bubble({ topic, outcome, style }: BubblePlacement & { style: CSSProperties }) {
   const { color, label, note } = OUTCOME[outcome];
   const fill = FILL[outcome];
 
   return (
-    <li
-      title={`${topic.name} — ${label}, ${note}`}
-      className="relative flex h-[86px] w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-full border text-center"
+    <span
+      title={`${topic.name}: ${label}, ${note}`}
+      className="absolute flex items-center justify-center overflow-hidden rounded-full border text-center"
       style={{
+        ...style,
         borderColor: fill === 0 ? 'var(--athena-border)' : color,
-        background: 'var(--athena-surface)',
+        background: 'var(--athena-surface-raised)',
       }}
     >
-      {/* Fills from the bottom, flat-topped, like a filling vessel. */}
+      {/* Fills from the bottom. */}
       <span
         aria-hidden
         className="absolute inset-x-0 bottom-0"
@@ -111,7 +185,42 @@ function Bubble({ topic, outcome }: { topic: Topic; outcome: Outcome }) {
           {OUTCOME.recovered.glyph}
         </span>
       )}
-    </li>
+    </span>
+  );
+}
+
+function BubbleCloud({ items }: { items: BubbleItem[] }) {
+  const layout = layoutBubbles(items);
+  const answered = items.filter((item) => item.outcome !== 'untouched').length;
+
+  return (
+    <div
+      className="relative aspect-[360/250] min-h-[220px] overflow-hidden rounded-[8px] border border-[var(--athena-border)] bg-[var(--athena-bg)]"
+      role="img"
+      aria-label={`${answered} of ${items.length} topics examined as a bubble map`}
+    >
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-[8px] border border-[var(--athena-border)] bg-[rgba(20,21,29,0.92)] px-3 py-2 text-center">
+        <p className="athena-mono text-[11px] font-semibold text-[var(--athena-text)]">
+          Topics
+        </p>
+        <p className="athena-mono text-[18px] font-semibold text-[var(--athena-text)]">
+          {answered} <span className="text-[var(--athena-text-dim)]">/ {items.length}</span>
+        </p>
+      </div>
+      {layout.map((bubble) => (
+        <Bubble
+          key={`${bubble.id}-${bubble.topic.name}`}
+          {...bubble}
+          style={{
+            left: `${(bubble.x / BUBBLE_CANVAS.width) * 100}%`,
+            top: `${(bubble.y / BUBBLE_CANVAS.height) * 100}%`,
+            width: `${(bubble.size / BUBBLE_CANVAS.width) * 100}%`,
+            aspectRatio: '1 / 1',
+            zIndex: bubble.outcome === 'weak' || bubble.outcome === 'shaky' ? 12 : 8,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -140,7 +249,7 @@ export function SummaryPanel({
   const groups = groupTopics(topics);
   const total = topics.length || 1;
 
-  // Worst-first, matching the revision order the student is asked to follow.
+  // Worst first, matching the revision order below.
   const segments: { outcome: Outcome; items: Topic[] }[] = [
     { outcome: 'weak', items: groups.weak },
     { outcome: 'shaky', items: groups.shaky },
@@ -148,13 +257,15 @@ export function SummaryPanel({
     { outcome: 'strong', items: groups.strong },
     { outcome: 'untouched', items: groups.untouched },
   ];
+  const bubbleItems = segments
+    .flatMap((segment) =>
+      segment.items.map((topic) => ({ topic, outcome: segment.outcome })),
+    )
+    .map((item, id) => ({ ...item, id }));
 
-  /**
-   * The meter merges the two amber states into one fill. As separate segments
-   * they would sit adjacent in the same hue and read as a single block anyway,
-   * with the 2px gap looking like a rendering artefact rather than a boundary.
-   * The groups below still tell them apart.
-   */
+  // The meter merges the two amber states into one fill: side by side in the
+  // same hue they read as one block anyway, and the 2px gap just looks like a
+  // rendering glitch. The groups below still separate them.
   const meter: { key: string; label: string; color: string; count: number }[] = [
     {
       key: 'revisit',
@@ -205,8 +316,7 @@ export function SummaryPanel({
         </p>
       </header>
 
-      {/* Proportion meter: the whole session in one line. 2px surface gaps
-          separate segments so adjacent fills never blend into one another. */}
+      {/* The whole session in one line. 2px gaps keep segments apart. */}
       <div
         className="flex shrink-0 gap-[2px] overflow-hidden rounded-[4px]"
         role="img"
@@ -228,8 +338,7 @@ export function SummaryPanel({
       </div>
 
       <div className="athena-scroll flex min-h-0 flex-1 flex-col gap-3">
-        {/* What to do next — the actionable half, and the reason this screen
-            exists rather than a file. */}
+        {/* What to do next. */}
         {groups.revisionOrder.length > 0 && (
           <section className="athena-card shrink-0 p-3">
             <h2 className="athena-mono text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)]">
@@ -263,7 +372,7 @@ export function SummaryPanel({
           </section>
         )}
 
-        {/* The rest of the map, grouped. Same chips, now resolved. */}
+        {/* The rest of the map, grouped. */}
         {segments
           .filter((s) => s.items.length > 0)
           .map((s) => (
@@ -273,7 +382,7 @@ export function SummaryPanel({
                 <span className="athena-mono uppercase tracking-[0.12em]">
                   {OUTCOME[s.outcome].label}
                 </span>
-                <span className="truncate">— {OUTCOME[s.outcome].note}</span>
+                <span className="truncate">{OUTCOME[s.outcome].note}</span>
               </h2>
               <ul className="mt-1.5 flex flex-wrap gap-1.5">
                 {s.items.map((topic) => (
@@ -298,28 +407,21 @@ export function SummaryPanel({
             </section>
           ))}
 
-        {/* The same topics once more, as a single glance. Redundant with the
-            groups above by design — the groups are for reading, this is the
-            shape of the session you remember afterwards. */}
+        {/* The same topics again, as one picture. Redundant with the groups
+            above on purpose: those are for reading, this is for remembering. */}
         <section className="shrink-0">
           <h2 className="athena-mono text-[10px] uppercase tracking-[0.12em] text-[var(--athena-text-dim)]">
             Your map
           </h2>
-          <ul className="mt-2 flex flex-wrap justify-center gap-2">
-            {segments.flatMap((segment) =>
-              segment.items.map((topic) => (
-                <Bubble key={topic.name} topic={topic} outcome={segment.outcome} />
-              )),
-            )}
-          </ul>
+          <div className="mt-2">
+            <BubbleCloud items={bubbleItems} />
+          </div>
           <p className="mt-2 text-center text-[10px] leading-tight text-[var(--athena-text-dim)]">
-            Fuller means better understood. All one size — no topic counts for
-            more than another.
+            Fuller means better understood. Bubble size only helps longer labels fit.
           </p>
         </section>
 
-        {/* The full written record stays available, but it is no longer the
-            first thing the student is asked to read. */}
+        {/* Full record, collapsed by default. */}
         <section className="shrink-0">
           <button
             type="button"

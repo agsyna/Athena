@@ -1,5 +1,4 @@
-/* Athena side panel shell. Mirrors the viva surface's tokens so the handoff
-   between this shell and the embedded app is invisible. */
+/* Side panel styles. Same tokens as the viva surface. */
 
 :root {
   --bg: #0a0b10;
@@ -19,13 +18,8 @@
   box-sizing: border-box;
 }
 
-/*
- * `hidden` must beat every layout rule below.
- *
- * Without !important this loses to any ID selector — `#compose { display: flex }`
- * outranks `.view[hidden] { display: none }` on specificity, so the compose view
- * stayed on screen after the viva loaded and pushed the frame below the fold.
- */
+/* !important because an ID selector like `#compose { display: flex }` beats
+   `.view[hidden]` on specificity and the compose view stays on screen. */
 [hidden] {
   display: none !important;
 }
@@ -46,7 +40,7 @@ body {
   display: none;
 }
 
-/* ── Compose ─────────────────────────────────────────────────────────────── */
+/* --- Compose --- */
 
 #compose {
   display: flex;
@@ -87,8 +81,7 @@ body {
 .passage {
   flex: 1 1 auto;
   min-height: 120px;
-  /* Cap it so the character count, the button, and the tip always stay in view
-     however much the student pastes. */
+  /* Capped so the count and the button stay visible however much is pasted. */
   max-height: 42vh;
   width: 100%;
   padding: 10px;
@@ -190,7 +183,7 @@ body {
   color: var(--text-dim);
 }
 
-/* ── Status ──────────────────────────────────────────────────────────────── */
+/* --- Status --- */
 
 .state {
   display: flex;
@@ -241,7 +234,7 @@ body {
   display: none;
 }
 
-/* ── Running view ────────────────────────────────────────────────────────── */
+/* --- Running view --- */
 
 .stack {
   display: flex;
@@ -251,8 +244,7 @@ body {
   margin-top: 6px;
 }
 
-/* Echoes the orb on the viva surface, so the panel and the window read as one
-   product rather than two. */
+/* Same orb as the viva surface. */
 .orb {
   width: 56px;
   height: 56px;
@@ -298,7 +290,7 @@ body {
   }
 }
 
-/* ── Revision ────────────────────────────────────────────────────────────── */
+/* --- Revision --- */
 
 .head-row {
   display: flex;
@@ -307,8 +299,7 @@ body {
   gap: 8px;
 }
 
-/* A quiet secondary action in the header — present, never competing with
-   "Start viva" for the eye. */
+/* Secondary header action, shouldn't compete with "Start viva". */
 .chip-button {
   display: inline-flex;
   align-items: center;
@@ -330,8 +321,7 @@ body {
   border-color: var(--blue);
 }
 
-/* Count of topics still needing work. Amber because it is a nudge, not an
-   error — nothing has gone wrong, there is just something left to do. */
+/* Topics still needing work. Amber, not red: it's a nudge, not an error. */
 .badge {
   min-width: 15px;
   padding: 1px 4px;
@@ -385,11 +375,8 @@ body {
   gap: 5px;
 }
 
-/*
- * Filters are toggles, not a segmented control: the student is as likely to
- * want "the two I am bad at" as a single status, and with none pressed the
- * list shows everything.
- */
+/* Toggles rather than a segmented control, so you can pick two statuses at
+   once. None pressed means show everything. */
 .filter {
   padding: 4px 9px;
   font-family: inherit;
@@ -490,8 +477,7 @@ body {
   color: var(--text-dim);
 }
 
-/* The recovery mark, carried over from the live understanding map so the same
-   event reads the same way in both places. */
+/* Recovery mark, same as on the live map. */
 .topic-redeemed {
   color: var(--success);
 }
@@ -509,4 +495,423 @@ body {
 
 .link.is-quiet:hover {
   color: var(--danger);
+}
+
+/* --- Viva, in the panel --- */
+
+#viva {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 13px;
+  overflow: hidden;
+}
+
+.clock {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.athena-mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.orb-row {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+/* The only indicator of whether Athena is listening or talking, so it has to
+   be readable mid-answer without reading any text. */
+#viva-orb {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+}
+
+#viva-orb[data-state="listening"]::after {
+  background: var(--success);
+  box-shadow: 0 0 16px rgba(47, 208, 122, 0.6);
+}
+
+#viva-orb[data-state="thinking"]::after {
+  background: var(--amber);
+  box-shadow: 0 0 16px rgba(245, 166, 35, 0.6);
+}
+
+#viva-orb[data-state="offline"]::after {
+  background: var(--text-dim);
+  box-shadow: none;
+  animation: none;
+}
+
+.caption {
+  flex-shrink: 0;
+  margin: 0;
+  min-height: 2.6em;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.map {
+  flex-shrink: 0;
+  padding: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.chip[data-status="active"] {
+  color: var(--blue);
+  background: rgba(77, 141, 255, 0.14);
+  border-color: var(--blue);
+}
+.chip[data-status="active"] .chip-dot {
+  background: var(--blue);
+}
+
+.chip[data-status="partial"] .chip-dot,
+.chip[data-status="wrong"] .chip-dot {
+  background: var(--amber);
+}
+.chip[data-status="partial"],
+.chip[data-status="wrong"] {
+  color: var(--amber);
+  background: rgba(245, 166, 35, 0.12);
+  border-color: var(--amber);
+}
+
+.chip[data-status="correct"] .chip-dot {
+  background: var(--success);
+}
+.chip[data-status="correct"] {
+  color: var(--success);
+  background: rgba(47, 208, 122, 0.12);
+  border-color: var(--success);
+}
+
+/* Fires when a wrong or partial topic finally goes green. */
+.chip.is-redeeming {
+  animation: redeem 900ms ease-out;
+}
+
+@keyframes redeem {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(47, 208, 122, 0.5);
+  }
+  40% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 7px rgba(47, 208, 122, 0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip.is-redeeming {
+    animation: none;
+  }
+}
+
+/* Shown when Athena says something is outside the passage. */
+.outside {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+
+.outside[hidden] {
+  display: none;
+}
+
+.transcript {
+  flex: 1 1 auto;
+  min-height: 60px;
+  margin: 0;
+  padding: 9px;
+  list-style: none;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.turn {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.turn + .turn {
+  margin-top: 7px;
+}
+
+.turn-who {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.turn.is-live .turn-text {
+  color: var(--text-dim);
+}
+
+.warning {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  background: rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  border-radius: 8px;
+}
+
+.warning[hidden] {
+  display: none;
+}
+
+.answer-row,
+.controls-row {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.controls-row .button {
+  flex: 1;
+}
+
+.typed {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.typed:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.button.is-compact {
+  margin-top: 0;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* --- Summary --- */
+
+#summary {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 14px;
+  overflow: hidden;
+}
+
+.summary-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.summary-cloud {
+  position: relative;
+  min-height: 220px;
+  aspect-ratio: 360 / 250;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.summary-cloud-centre {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  left: 50%;
+  min-width: 88px;
+  padding: 8px 10px;
+  text-align: center;
+  background: rgba(20, 21, 29, 0.94);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.summary-cloud-centre span,
+.summary-cloud-centre strong {
+  display: block;
+  font-family: var(--mono);
+}
+
+.summary-cloud-centre span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.summary-cloud-centre strong {
+  margin-top: 1px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.summary-cloud-centre em {
+  margin-left: 3px;
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+.summary-bubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.summary-bubble::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--fill);
+  opacity: 0.22;
+}
+
+.summary-bubble[data-outcome="strong"] {
+  border-color: rgba(47, 208, 122, 0.75);
+}
+
+.summary-bubble[data-outcome="strong"]::before {
+  background: var(--success);
+}
+
+.summary-bubble[data-outcome="recovered"] {
+  border-color: rgba(77, 141, 255, 0.75);
+}
+
+.summary-bubble[data-outcome="recovered"]::before {
+  background: var(--blue);
+}
+
+.summary-bubble[data-outcome="shaky"],
+.summary-bubble[data-outcome="weak"] {
+  border-color: rgba(245, 166, 35, 0.75);
+}
+
+.summary-bubble[data-outcome="shaky"]::before,
+.summary-bubble[data-outcome="weak"]::before {
+  background: var(--amber);
+}
+
+.summary-bubble-label {
+  position: relative;
+  z-index: 1;
+  max-width: 86%;
+  padding: 0 2px;
+  font-size: 10px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.summary-bubble-mark {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--blue);
+}
+
+.summary-focus {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.summary-focus-list {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
+.summary-focus-list li {
+  padding-left: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.summary-focus-list li + li {
+  margin-top: 4px;
+}
+
+.summary-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
 }

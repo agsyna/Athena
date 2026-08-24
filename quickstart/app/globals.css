@@ -193,13 +193,12 @@ body {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Athena — viva surface tokens and components.
+/* -----------------------------------------------------------------------------
+   Athena viva surface: tokens and components.
 
-   Scoped to .athena-root so the Agora quickstart's own light/dark theme is
-   untouched. Athena commits to a single dark treatment: it renders inside a
-   Chrome side panel next to whatever the student is reading, and a surface that
-   flipped with the OS theme would fight the page behind it.
+   Scoped to .athena-root so the quickstart's own light/dark theme is untouched.
+   Athena is dark only. It renders in a side panel next to whatever is being
+   read, and a surface that flipped with the OS theme would fight that page.
 
    Palette per the Athena design spec. `--athena-amber` is the deliberate
    addition to the base kit: the kit defines success and danger but has no
@@ -238,7 +237,7 @@ body {
   color: var(--athena-text);
 }
 
-/* Cards: 1px border, never a drop shadow — per the kit's surface rule. */
+/* Cards: 1px border, never a drop shadow. */
 .athena-card {
   background: var(--athena-surface);
   border: 1px solid var(--athena-border);
@@ -338,9 +337,9 @@ body {
   animation: athena-pulse 1.6s ease-in-out infinite;
 }
 
-/* Amber covers both "partial" and "wrong" visually as the struggling state,
-   distinguished by border weight rather than a second hue — two warm colours
-   next to each other read as noise at chip size. */
+/* Amber covers both "partial" and "wrong" as the struggling state, told apart
+   by border weight. Two warm colours next to each other just look like noise
+   at chip size. */
 .athena-chip[data-status='partial'] {
   background: var(--athena-amber-dim);
   color: var(--athena-amber);
@@ -391,8 +390,7 @@ body {
   }
 }
 
-/* The recovery beat gets a longer, wider halo — this is the moment worth
-   noticing, so it should not look like every other status change. */
+/* A longer, wider halo than the normal flip, so a recovery stands out. */
 .athena-chip.is-redeeming {
   animation: athena-redeem 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -456,7 +454,7 @@ body {
   transform: scale(1.12);
 }
 
-/* Listening: dimmed and still — the student has the floor. */
+/* Listening: dimmed and still, the student has the floor. */
 .athena-orb[data-state='listening'] {
   opacity: 0.55;
 }
@@ -519,8 +517,8 @@ body {
   border-radius: 3px;
 }
 
-/* Respect the student's motion preference — every Athena animation is
-   decorative reinforcement of a state that is also conveyed by colour and text. */
+/* Every animation here only reinforces a state that colour and text already
+   convey, so dropping them all loses nothing. */
 @media (prefers-reduced-motion: reduce) {
   .athena-chip,
   .athena-chip.is-flipping,
@@ -533,13 +531,9 @@ body {
   }
 }
 
-/*
- * The out-of-scope notice under the understanding map.
- *
- * It appears mid-session, in a card the student is already watching, so it
- * eases in rather than snapping — a hard pop reads as an error state, and this
- * is not one. It is Athena declining to guess, which is a good thing to see.
- */
+/* The out-of-scope notice under the map. Appears mid-session in a card that is
+   already being watched, so it eases in: a hard pop reads as an error, and
+   Athena declining to guess is not one. */
 .athena-outside {
   animation: fade-up 260ms ease-out both;
   border-top: 1px solid var(--athena-border);

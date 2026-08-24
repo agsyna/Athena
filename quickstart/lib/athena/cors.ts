@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 
-/**
- * The Athena API is called from two origins: the viva page (same-origin) and
- * the Chrome extension's side panel (`chrome-extension://<id>`). Extension IDs
- * are not known until the unpacked extension is loaded, and this server is a
- * localhost dev server for a single user, so the extension origin is allowed
- * by scheme rather than by a pinned id.
- *
- * Do not deploy this as-is to a public host — see "Known limitations" in the
- * README.
- */
+// Callers are the viva page (same-origin) and the extension's side panel
+// (chrome-extension://<id>). Unpacked extension IDs aren't known ahead of time,
+// so origins are allowed by scheme. Fine for a local dev server, not for a
+// public one. See "Known limitations" in the README.
 function allowedOrigin(origin: string | null): string | null {
   if (!origin) return null;
   if (origin.startsWith('chrome-extension://')) return origin;

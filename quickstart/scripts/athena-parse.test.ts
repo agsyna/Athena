@@ -55,9 +55,8 @@ t('takes the last object when the model emits two', () => {
 });
 
 t('survives an unbalanced quote in the spoken prose', () => {
-  // Observed in the wild: the model copied a quoted example and left its
-  // opening quote in the turn, which desynced the old string-state scanner and
-  // hid the payload completely.
+  // Seen for real: the model copied a quoted example and left the opening
+  // quote in, which desynced the old scanner and hid the payload.
   const r = parseTurn('"Right, let us start. {"topics":["A","B"],"focus":"A"}');
   assert.deepEqual(r.control?.topics, ['A', 'B']);
   assert.equal(r.control?.focus, 'A');

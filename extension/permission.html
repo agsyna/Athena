@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Athena microphone access</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <!-- One-time mic grant. Chrome grants per origin, and chrome-extension://
+         is its own origin, so a grant given to localhost doesn't carry over.
+         Asked from a tab because that's where Chrome anchors the prompt. -->
+    <main class="state" style="max-width: 34rem; margin: 0 auto">
+      <div class="brand">ATHENA</div>
+      <p class="message">Athena needs your microphone.</p>
+      <p class="detail">
+        A viva is spoken out loud, so the panel has to hear you. Chrome asks
+        once, for the extension as a whole. After this you will not see this
+        page again.
+      </p>
+      <button id="grant" class="primary" type="button">
+        Allow the microphone
+      </button>
+      <p id="result" class="detail" role="status"></p>
+      <p id="help" class="fine" hidden>
+        If you dismissed the prompt: open the padlock in the address bar,
+        set Microphone to Allow, then press the button again.
+      </p>
+    </main>
+    <script src="permission.js"></script>
+  </body>
+</html>

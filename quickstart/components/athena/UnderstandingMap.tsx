@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<TopicStatus, string> = {
   correct: 'understood',
 };
 
-/** Halo colour for the flip animation, matching the status being moved *to*. */
+/** Halo colour for the flip animation, matching the status moved to. */
 const FLIP_GLOW: Record<TopicStatus, string> = {
   unattempted: 'transparent',
   active: 'rgba(77, 141, 255, 0.35)',
@@ -32,7 +32,7 @@ function Chip({ topic }: { topic: Topic }) {
     const isRedemption = wasStruggling && topic.status === 'correct';
     previous.current = topic.status;
 
-    // Restart the animation even if the same class is reapplied back-to-back.
+    // Restarts the animation if the same class is reapplied back to back.
     setAnimation('');
     const raf = requestAnimationFrame(() =>
       setAnimation(isRedemption ? 'is-redeeming' : 'is-flipping'),
@@ -50,7 +50,7 @@ function Chip({ topic }: { topic: Topic }) {
       className={`athena-chip ${animation}`}
       data-status={topic.status}
       style={{ ['--athena-flip-glow' as string]: FLIP_GLOW[topic.status] }}
-      title={`${topic.name} — ${STATUS_LABEL[topic.status]}`}
+      title={`${topic.name}: ${STATUS_LABEL[topic.status]}`}
     >
       <span className="athena-chip-dot" aria-hidden />
       {topic.name}
@@ -59,7 +59,7 @@ function Chip({ topic }: { topic: Topic }) {
           ✓
         </span>
       )}
-      <span className="sr-only">— {STATUS_LABEL[topic.status]}</span>
+      <span className="sr-only">, {STATUS_LABEL[topic.status]}</span>
     </span>
   );
 }
@@ -69,7 +69,7 @@ export function UnderstandingMap({
   outsideAsk = null,
 }: {
   topics: Topic[];
-  /** Last thing asked about that the passage does not cover, if any. */
+  /** Last thing asked about that the passage doesn't cover, if any. */
   outsideAsk?: string | null;
 }) {
   const settled = topics.filter(
@@ -80,7 +80,7 @@ export function UnderstandingMap({
     <section
       className="athena-card p-3"
       aria-label="Understanding map"
-      // Chip colours change without a page interaction, so announce updates.
+      // Chips change without any interaction, so announce the updates.
       aria-live="polite"
     >
       <div className="mb-2.5 flex items-baseline justify-between">
@@ -109,7 +109,7 @@ export function UnderstandingMap({
       {outsideAsk && (
         <p className="athena-outside mt-2.5 text-[11px] leading-snug text-[var(--athena-text-dim)]">
           <span aria-hidden>◇</span> <strong>{outsideAsk}</strong> is outside
-          this passage — Athena said so rather than guessing. Not judged.
+          this passage. Athena said so rather than guessing, so it is not judged.
         </p>
       )}
     </section>

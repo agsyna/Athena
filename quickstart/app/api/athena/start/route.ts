@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import {
   AgoraClient,
   Agent,
@@ -11,23 +11,17 @@ import {
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import { getSession, updateSession } from '@/lib/athena/store';
 import { ATHENA_GREETING, buildAthenaPrompt } from '@/lib/athena/prompt';
+import { preflight, withCors } from '@/lib/athena/cors';
 
-/**
- * Starts the Athena viva agent.
- *
- * This is the quickstart's `/api/invite-agent` with three deliberate changes,
- * all of them documented join/config fields:
- *   1. `instructions` is built from the student's highlighted passage.
- *   2. `greeting` is Athena's, not Ada's.
- *   3. TTS runs with `skipPatterns: [5]`, so the engine strips `{ }` content
- *      before speech synthesis. That is what lets Athena report her judgement
- *      of each answer to the app without the student ever hearing it — the
- *      real-time transcript still restores the full text once a sentence
- *      finishes. See lib/athena/prompt.ts and lib/athena/parse.ts.
- *
- * The pipeline, token flow, VAD config, RTM flags, and lifecycle are the
- * sample's, unchanged.
- */
+// Starts the viva agent. This is the quickstart's /api/invite-agent with three
+// changes:
+//   1. instructions come from the student's passage
+//   2. a different greeting
+//   3. TTS runs with skipPatterns: [5], so the engine strips { } before speech
+//      synthesis while the transcript still gets the full text. That's the
+//      control channel. See lib/athena/prompt.ts and lib/athena/parse.ts.
+//
+// Everything else (token flow, RTM flags, lifecycle) is the sample's.
 
 const agentUid = String(DEFAULT_AGENT_UID);
 
@@ -35,6 +29,10 @@ function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return preflight(request);
 }
 
 export async function POST(request: NextRequest) {
@@ -51,7 +49,8 @@ export async function POST(request: NextRequest) {
     const appCertificate = requireEnv('NEXT_AGORA_APP_CERTIFICATE');
 
     if (!channel_name || !requester_id || !session_id) {
-      return NextResponse.json(
+      return withCors(
+      request,
         { error: 'channel_name, requester_id and session_id are required' },
         { status: 400 },
       );
@@ -59,7 +58,8 @@ export async function POST(request: NextRequest) {
 
     const session = getSession(session_id);
     if (!session) {
-      return NextResponse.json(
+      return withCors(
+      request,
         { error: 'That viva session has expired. Highlight your passage again.' },
         { status: 404 },
       );
@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       greeting: ATHENA_GREETING,
       failureMessage: 'Give me one moment.',
       maxHistory: 50,
-      // VAD tuned for a viva: the student is expected to cut in and challenge,
-      // so interruption stays as responsive as the sample's default.
+      // Interruption stays as responsive as the sample's default, since cutting
+      // in is a normal thing to do in a viva.
       turnDetection: {
         config: {
           speech_threshold: 0.5,
@@ -96,8 +96,7 @@ export async function POST(request: NextRequest) {
           end_of_speech: {
             mode: 'vad',
             vad_config: {
-              // A little longer than the sample's 480ms: students pause to
-              // think mid-answer, and cutting them off reads as rude.
+              // Longer than the sample's 480ms: people pause mid-answer.
               silence_duration_ms: 700,
             },
           },
@@ -122,14 +121,12 @@ export async function POST(request: NextRequest) {
           model: 'gpt-4o-mini',
           greetingMessage: ATHENA_GREETING,
           failureMessage: 'Give me one moment.',
-          // A viva depends on Athena remembering which topics she already
-          // judged, so she can circle back. This is the session memory.
+          // She needs to remember what she already judged, to circle back.
           maxHistory: 40,
           params: {
             max_tokens: 1024,
-            // Lower than the sample's 0.7: the control payload has to come out
-            // in a fixed shape every turn, and examiner questions should be
-            // pointed rather than florid.
+            // Lower than the sample's 0.7. The control payload has to come out
+            // in the same shape every turn.
             temperature: 0.4,
             top_p: 0.9,
           },
@@ -139,7 +136,7 @@ export async function POST(request: NextRequest) {
         new MiniMaxTTS({
           model: 'speech_2_6_turbo',
           voiceId: 'English_captivating_female1',
-          // 5 = skip content in curly braces. This is the silent control channel.
+          // 5 = skip curly braces. This is what hides the control channel.
           skipPatterns: [5],
         }),
       );
@@ -156,14 +153,15 @@ export async function POST(request: NextRequest) {
     const agentId = await agentSession.start();
     updateSession(session_id, { agentId, channel: channel_name });
 
-    return NextResponse.json({
+    return withCors(request, {
       agent_id: agentId,
       create_ts: Math.floor(Date.now() / 1000),
       state: 'RUNNING',
     });
   } catch (error) {
     console.error('Error starting Athena viva:', error);
-    return NextResponse.json(
+    return withCors(
+      request,
       {
         error:
           error instanceof Error ? error.message : 'Failed to start the viva',

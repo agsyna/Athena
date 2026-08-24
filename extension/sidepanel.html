@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
-    <!-- Compose: paste or edit the passage to be examined on. -->
+    <!-- Paste or edit the passage. -->
     <section id="compose" class="view" hidden>
       <header class="head">
         <div class="head-row">
@@ -23,7 +23,7 @@
       <textarea
         id="passage"
         class="passage"
-        placeholder="Paste a few paragraphs here — lecture notes, a textbook section, anything you need to be able to explain out loud."
+        placeholder="Paste a few paragraphs here: lecture notes, a textbook section, anything you need to be able to explain out loud."
         spellcheck="false"
       ></textarea>
 
@@ -46,7 +46,7 @@
       </p>
     </section>
 
-    <!-- Transient status while a session is being created. -->
+    <!-- Shown while a session is being created. -->
     <section id="status" class="view state" hidden>
       <div class="brand">ATHENA</div>
       <p id="status-message" class="message">Preparing your viva…</p>
@@ -54,40 +54,86 @@
       <button id="status-back" class="button" hidden type="button">Back</button>
     </section>
 
-    <!--
-      The viva runs in its own window rather than embedded here.
+    <!-- The viva. Runs on the extension's own origin with the Agora SDKs
+         vendored, so there's no iframe and no second mic permission context. -->
+    <section id="viva" class="view" hidden>
+      <header class="head">
+        <div class="head-row">
+          <div class="brand">VIVA</div>
+          <span id="viva-clock" class="clock athena-mono">00:00</span>
+        </div>
+        <p id="viva-state" class="sub">Connecting…</p>
+      </header>
 
-      A cross-origin frame inside a chrome-extension:// page is a separate
-      microphone permission context: Chrome will not inherit a grant already
-      given to localhost, and the prompt it raises cannot reliably be answered
-      from the side panel. A real top-level window prompts normally and the
-      grant persists.
-    -->
-    <section id="running" class="view state" hidden>
-      <div class="orb" aria-hidden></div>
-      <div class="brand">VIVA RUNNING</div>
-      <p class="message">Athena is in her own window.</p>
-      <p class="detail">
-        Drag it beside whatever you're reading. Answer out loud — the
-        understanding map updates as you go.
-      </p>
-      <div class="stack">
-        <button id="focus-window" class="button" type="button">
-          Bring the viva to the front
+      <div class="orb-row">
+        <div id="viva-orb" class="orb" data-state="offline" aria-hidden></div>
+      </div>
+
+      <p id="viva-caption" class="caption"></p>
+
+      <section class="map" aria-label="Understanding map" aria-live="polite">
+        <div class="row">
+          <span class="label">Understanding</span>
+          <span id="map-count" class="count athena-mono"></span>
+        </div>
+        <div id="map-chips" class="chips"></div>
+        <p id="map-empty" class="fine">Filled in once the examination starts.</p>
+        <p id="map-outside" class="outside" hidden></p>
+      </section>
+
+      <ul id="viva-transcript" class="transcript" aria-label="Transcript"></ul>
+
+      <p id="viva-warning" class="warning" role="status" hidden></p>
+
+      <div class="answer-row">
+        <input
+          id="viva-typed"
+          class="typed"
+          type="text"
+          placeholder="…or type your answer"
+          autocomplete="off"
+        />
+        <button id="viva-send" class="button is-compact" type="button">Send</button>
+      </div>
+
+      <div class="controls-row">
+        <button id="viva-mic" class="button is-compact" type="button">Mute</button>
+        <button id="viva-weak" class="button is-compact" type="button" disabled>
+          Weak topics
         </button>
-        <button id="running-new" class="link" type="button">
-          Start a different passage
+        <button id="viva-watch" class="button is-compact" type="button">
+          Watch link
+        </button>
+      </div>
+
+      <button id="viva-end" class="primary" type="button">
+        End viva &amp; get summary
+      </button>
+    </section>
+
+    <!-- Summary, rendered from recorded state rather than a closing LLM call. -->
+    <section id="summary" class="view" hidden>
+      <header class="head">
+        <div class="head-row">
+          <div class="brand">SUMMARY</div>
+          <button id="summary-done" class="chip-button" type="button">Done</button>
+        </div>
+        <p id="summary-counts" class="sub"></p>
+      </header>
+
+      <div id="summary-body" class="summary-body"></div>
+
+      <div class="actions">
+        <button id="summary-download" class="primary" type="button">
+          Download revision file
+        </button>
+        <button id="summary-again" class="link" type="button">
+          Start another passage
         </button>
       </div>
     </section>
 
-    <!--
-      Revision: everything the student has ever been examined on, in one list.
-
-      A single viva ends in a summary of that viva. This is the view across all
-      of them — the thing that answers "what am I still bad at" rather than "how
-      did that session go".
-    -->
+    <!-- Everything examined so far, across all sessions. -->
     <section id="revision" class="view" hidden>
       <header class="head">
         <div class="head-row">
@@ -147,7 +193,10 @@
       <p id="revision-error" class="error" role="alert" hidden></p>
     </section>
 
+    <script src="vendor/process-shim.js"></script>
+    <script src="vendor/agora-rtc.js"></script>
+    <script src="vendor/agora-rtm.js"></script>
     <script src="revision.js"></script>
-    <script src="sidepanel.js"></script>
+    <script type="module" src="sidepanel.js"></script>
   </body>
 </html>

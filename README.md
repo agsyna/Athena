@@ -1,182 +1,164 @@
 # Athena
 
-**Paste or highlight anything you're studying. Have a live spoken viva about it.**
+A Chrome extension that turns whatever you're reading into a spoken oral exam.
 
-Athena is a Chrome extension that turns any passage — a lecture note, a Canvas page, a blog post — into a real-time spoken oral examination. Paste it into the side panel, or highlight it on the page and let Athena pick it up.
-
-She opens by telling you what the material actually covers and asking what you want from the session: to be examined, or to have something explained first. The viva starts when you say so. Athena asks, listens, and picks her next question based on how the last answer went. You can cut in mid-sentence. A live understanding map on screen tracks what you've got and what you haven't, chip by chip, as the conversation happens.
+Paste a passage into the side panel (or highlight it on the page and click the
+Athena icon), and Athena reads it, tells you what it covers, and asks whether
+you want to be examined or want something explained first. When you say go, she
+starts asking questions. You answer out loud. A map of topics on screen fills in
+as she judges each answer.
 
 Built on the [Agora Conversational AI Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
 
----
+## Why
 
-## The problem it solves
+Reading something and being able to explain it are not the same thing, and you
+usually find out which one you have in an exam. A viva is the format that
+catches the difference, but it needs an examiner sitting across from you, which
+is the part that doesn't scale.
 
-Reading is not the same as knowing. Students discover the gap in the exam room, because nothing between the textbook and the exam makes them *say the thing out loud and be pushed on it*. A viva does that, but a viva needs an examiner, and examiners don't scale.
+Athena examines the specific material in front of you rather than a fixed
+question bank, and adapts to how each answer goes: a correct answer earns a
+harder follow-up, a partial one keeps her on the topic with a narrower question,
+and a wrong one gets marked and revisited later in the session. If you say you
+don't know, she explains it and then checks you followed. If an answer is
+ambiguous she asks a clarifying question instead of guessing at a mark.
 
-Athena is an examiner that is always available, examines the specific material in front of you rather than a fixed question bank, and shows you your own understanding forming in real time.
+You can also type instead of speaking. Typed answers go down the same path and
+land in the transcript and summary identically.
 
-**Target user:** a student preparing for a technical viva, oral exam, or interview — anyone who needs to be able to *defend* material, not just recognise it.
+## The understanding map
 
----
+This is the part I think is interesting, and it needs no second model, no
+classifier call, and no extra API key.
 
-## What makes it different
-
-Most study bots quiz you from a fixed list. Athena does three things that a quiz cannot:
-
-1. **She adapts mid-conversation.** A correct answer earns a harder follow-up. A partial answer keeps her on the topic with a narrower question. A wrong answer makes her move on — and come back later.
-2. **She circles back, and you watch it land.** The topic you fumbled sits amber on screen. Several minutes later Athena returns to it unprompted, reframes the question, and when you get it the chip flips green with a visible pulse. That recovery moment is the point of the product.
-3. **She admits when she can't tell.** An ambiguous answer produces a clarifying question, not a silent guess and a wrong mark.
-4. **She teaches when you ask her to.** Say "I don't know" and she explains it, then checks you followed — a study aid, not a gatekeeper. The topic still goes amber, and she comes back to it.
-5. **She asks before she examines.** The session opens with an orientation, not a question. You decide when the examination starts, and you can ask her to explain things first for as long as you like.
-
-You can answer out loud or type — typed answers travel the same path and land in the transcript and summary identically, which also makes the whole thing usable in a quiet library or a noisy room.
-
----
-
-## How the understanding map works
-
-This is the technically interesting part, and it needs no second model, no classifier call, and no vendor API key.
-
-The Agora ConvoAI join payload supports [`tts.skip_patterns`](https://docs-md.agora.io/en/conversational-ai/rest-api/agent/join.md). Setting it to `5` tells the engine to strip **curly-brace content before speech synthesis**. The same spec states that the real-time transcript *"restores the complete text after each sentence finishes."*
-
-That gives Athena a silent side-channel straight down the existing voice pipeline:
+The ConvoAI join payload supports [`tts.skip_patterns`](https://docs-md.agora.io/en/conversational-ai/rest-api/agent/join.md).
+Setting it to `5` tells the engine to strip curly-brace content before speech
+synthesis, and the spec says the real-time transcript "restores the complete
+text after each sentence finishes." So anything in braces is a side channel that
+goes down the existing voice pipeline: the student never hears it, the app
+always sees it.
 
 ```
 Athena's LLM output:
-  "Good — so what does that cost you on writes? {"focus":"Indexing",
+  "Good, so what does that cost you on writes? {"focus":"Indexing",
    "mark":{"topic":"Normalization","result":"correct"}}"
 
-  → TTS speaks:      "Good — so what does that cost you on writes?"
-  → Transcript gets: the full string, braces included
-  → Browser parses:  the control payload, flips the Normalization chip green
+  TTS speaks:      "Good, so what does that cost you on writes?"
+  Transcript gets: the full string, braces included
+  Browser parses:  the control payload, flips the Normalization chip green
 ```
 
-The student never hears it. The app always sees it. One model, one call, one round trip.
+One model, one call, one round trip. The alternatives are worse: a hidden tag
+without `skip_patterns` gets read aloud, a second classifier call per turn adds
+latency and cost and can contradict what the student was just told, and an MCP
+tool call needs the agent's tool endpoint to be publicly reachable.
 
-The prompt contract lives in [`quickstart/lib/athena/prompt.ts`](quickstart/lib/athena/prompt.ts); the reader and state reducer in [`quickstart/lib/athena/parse.ts`](quickstart/lib/athena/parse.ts), with 17 unit tests in [`quickstart/scripts/athena-parse.test.ts`](quickstart/scripts/athena-parse.test.ts).
-
-> **Why this beats the obvious alternatives.** A hidden-tag scheme without `skip_patterns` gets read aloud. A second classifier LLM call per turn adds latency, cost, an API key, and a second opinion that can contradict what the student was just told. An MCP tool call would work but requires the agent's tool endpoint to be publicly reachable — a tunnel, on conference wifi, mid-demo.
-
----
+The contract is in [`quickstart/lib/athena/prompt.ts`](quickstart/lib/athena/prompt.ts),
+the reader and state reducer in [`quickstart/lib/athena/parse.ts`](quickstart/lib/athena/parse.ts),
+with tests in [`quickstart/scripts/athena-parse.test.ts`](quickstart/scripts/athena-parse.test.ts).
 
 ## Architecture
 
-See [`docs/architecture.md`](docs/architecture.md) for the full diagram and call sequence.
+See [`docs/architecture.md`](docs/architecture.md) for the diagrams and the call
+sequence.
 
 ```
-┌──────────────────────────────┐
-│  Chrome extension (MV3)      │
-│  · service worker — captures a highlighted passage (optional accelerator);
-│                     opens and tracks the viva window
-│  · side panel   — paste box; exchanges the passage for a session id,
-│                   then launches the viva beside your material
-└───────────────┬──────────────┘
-                │  POST /api/athena/session   (passage → session id)
-                ▼
-┌──────────────────────────────┐
-│  Athena app (Next.js)        │   ← the official Agora Next.js quickstart,
-│  · /viva            — the viva surface        extended, not replaced
-│  · /api/athena/start    — starts the agent
-│  · /api/athena/summary  — builds the revision file
-│  · /api/generate-agora-token, /api/stop-conversation  (unchanged)
-└───────────────┬──────────────┘
-                │  agora-agents SDK
-                ▼
-┌──────────────────────────────┐
-│  Agora Conversational AI Engine │
-│  Deepgram nova-3 → GPT-4o-mini → MiniMax speech_2_6_turbo
-│  agent joins the RTC channel; transcripts + state over RTM
-└──────────────────────────────┘
+Chrome extension (MV3)
+  background.js   captures a highlighted passage (optional shortcut)
+  sidepanel.js    paste box, and the viva itself
+  viva.js         RTC/RTM join, transcript, control channel
+      |
+      |  POST /api/athena/session  (passage -> session id)
+      v
+Next.js app (the Agora quickstart, extended)
+  /api/athena/token    RTC + RTM token
+  /api/athena/start    starts the agent
+  /api/athena/summary  builds the revision file
+  /api/athena/live     mirrors the map for the watch page
+      |
+      |  agora-agents SDK
+      v
+Agora Conversational AI Engine
+  Deepgram nova-3 -> GPT-4o-mini -> MiniMax speech_2_6_turbo
 ```
 
-**Why a server at all:** the Agora App Certificate signs RTC/RTM tokens and authenticates the ConvoAI REST calls. It is a secret and can never sit in extension code. The Next.js app is that boundary.
+**Why there's a server at all.** The Agora App Certificate signs RTC and RTM
+tokens and authenticates the ConvoAI REST calls. It's a secret, and an extension
+is a folder of files anyone who installs it can read. The Next.js app is that
+boundary and does nothing else.
 
-**Why the viva UI is served by the app rather than bundled into the extension:** the official quickstart's client carries a lot of hard-won correctness — StrictMode-safe join, microphone track lifecycle, RTM identity matching the token subject, transcript UID remapping. Re-implementing that inside an MV3 bundle would risk all of it for no user-visible gain.
+**Why the viva runs in the side panel.** It used to run in a separate window,
+because the first version embedded the app in an iframe and the microphone never
+worked: a cross-origin frame inside a `chrome-extension://` page is its own
+permission context, so a grant given to `localhost:3000` doesn't carry over and
+the prompt it raises can't reliably be answered from the panel. Vendoring the
+Agora SDKs and running the session on the extension's own origin removes the
+frame and the problem, so the viva sits next to what you're reading again. The
+standalone page at `/viva` still works if you want it in a tab.
 
-**Why the viva runs in its own window rather than inside the side panel.** It was embedded at first, and the microphone never worked. A cross-origin frame inside a `chrome-extension://` page is a *separate microphone permission context*: Chrome will not inherit a grant already given to `localhost:3000` in a normal tab, and the prompt it raises cannot reliably be answered from the side panel — it comes back as `NotAllowedError: Permission dismissed`. A real top-level window prompts normally and the grant persists. The panel opens it parked against the right edge of the browser window, so it still sits beside the material being studied.
+## What it does with the Agora pipeline
 
----
-
-## Conversational capabilities demonstrated
-
-| Capability | Where it shows up |
+| Capability | Where |
 |---|---|
-| **Barge-in / interruption** | Talk over Athena and she stops. Also exposed as a "Cut in" button using the toolkit's `interrupt()`. |
-| **Session memory** | `maxHistory: 40` — Athena remembers which topics she already judged, which is what lets her circle back. |
-| **Adaptive difficulty** | Correct → harder follow-up; partial → narrower question on the same topic; wrong → move on and return later. |
-| **Dynamic questioning** | Questions are generated from the student's own highlighted passage. There is no question bank. |
-| **Recovery from correction** | A wrong or partial topic revisited and answered correctly flips the chip green and is recorded as *recovered* in the summary. |
-| **Client → agent text injection** | Typed answers and the "go back over my weak topics" steer both push text into the live session via `sendText()`. |
-| **Teaching on request** | Saying "I don't know" gets a short explanation drawn from the passage and a check question — not a refusal. The topic is marked wrong, then re-asked later. |
-| **Two-phase session** | Athena orients first — what the material covers, what she would examine — and answers whatever you ask before the viva begins. Nothing lands on the map until you choose to start. |
-| **Outcome map** | The session ends with the same chips resolved into groups, a proportion meter, and an ordered "focus next" list. The markdown file is the record; the map is what you read. |
+| Barge-in | Talk over Athena and she stops. Also a "cut in" button using `interrupt()`. |
+| Session memory | `maxHistory: 40`, which is what lets her remember what she already judged and circle back. |
+| Adaptive difficulty | Correct means harder, partial means narrower, wrong means move on and return. |
+| Dynamic questions | Generated from the passage. No question bank. |
+| Text injection | Typed answers and the "go back over my weak topics" button both use `sendText()`. |
+| Two-phase session | Orientation first, examination only when you ask for it. |
+| Second screen | `/watch/<id>` mirrors the map read-only, and a watcher can ask Athena to revisit a topic. |
 
----
+## The summary
 
-## External action
+Ending a viva produces a markdown file: strengths, recoveries, weak areas, a
+suggested revision order, and the transcript. It's rendered from recorded
+session state rather than a closing LLM call, so it can't contradict the
+judgements you watched land on the chips, and it can't fail at the end of a run.
 
-Ending a viva produces a structured revision summary as a downloadable `.md` file: strengths, recoveries, weak areas, a suggested revision order, and the full transcript.
+`POST /api/athena/summary`, then `GET /api/athena/summary?id=...&download=1`,
+which responds with `Content-Disposition: attachment`.
 
-It is rendered from recorded session state rather than a closing LLM call, so it can never contradict the judgements the student watched land on the chips during the session — and it cannot fail at the end of a demo.
-
-Endpoint: `POST /api/athena/summary` → `GET /api/athena/summary?id=…&download=1`, which responds with `Content-Disposition: attachment`.
-
----
+The extension also keeps a history of every viva in `chrome.storage.local` and
+rolls it up into one revision list across sessions. Selecting topics from that
+list starts a fresh viva on just those, rebuilt from the passages they came from.
 
 ## Setup
 
-**Prerequisites:** Node.js 22+, pnpm 10, the [Agora CLI](https://github.com/AgoraIO/cli), and Google Chrome.
+Needs Node 22+, pnpm 10, the [Agora CLI](https://github.com/AgoraIO/cli), and Chrome.
 
-> pnpm **10** specifically — pnpm 11 turns the sample's benign `ERR_PNPM_IGNORED_BUILDS` warning into a hard failure through its dependency-status check. `npm install -g pnpm@10`.
+pnpm 10 specifically: pnpm 11 turns the sample's harmless
+`ERR_PNPM_IGNORED_BUILDS` warning into a hard failure. `npm install -g pnpm@10`.
 
 ```bash
-# 1. Provision an Agora project and scaffold the app (already done in this repo)
+# already done in this repo, listed for reference
 agora init athena --template nextjs --new-project --dir quickstart
 
-# 2. Install and run
 cd quickstart
-pnpm install     # ERR_PNPM_IGNORED_BUILDS is a warning, not an error
-pnpm dev         # http://localhost:3000
+pnpm install
+pnpm dev          # http://localhost:3000
 ```
 
-`agora init` writes `quickstart/.env.local` with `NEXT_PUBLIC_AGORA_APP_ID` and `NEXT_AGORA_APP_CERTIFICATE`, and enables `rtc`, `rtm`, and `convoai` on the project. **No other API keys are required** — speech recognition, the language model, and speech synthesis are all resold through Agora.
+`agora init` writes `quickstart/.env.local` with `NEXT_PUBLIC_AGORA_APP_ID` and
+`NEXT_AGORA_APP_CERTIFICATE`, and enables rtc, rtm and convoai on the project.
+No other API keys are needed: the speech recognition, the model, and the speech
+synthesis are all resold through Agora.
 
-**Load the extension:**
+Then load the extension:
 
-1. Chrome → `chrome://extensions`
-2. Enable **Developer mode**
-3. **Load unpacked** → select the [`extension/`](extension/) folder
+1. `chrome://extensions`
+2. Turn on Developer mode
+3. Load unpacked, and pick [`extension/`](extension/)
 
-**Try it:** click the Athena icon to open the side panel, paste a few paragraphs into the box, and click **Start viva**. Athena opens in her own window beside your material — grant microphone access when Chrome asks.
+Click the Athena icon, paste a few paragraphs, and hit Start viva. The first run
+opens a tab asking for the microphone, because Chrome grants that per origin and
+the extension has its own.
 
-Or use the shortcut: open <http://localhost:3000/demo.html>, highlight a section, then click the Athena icon — the highlighted text lands in the box ready to go.
-
-> **On highlighting.** Pasting is the primary input and always works. Highlight capture is an accelerator layered on top, because a page selection is genuinely fragile: it can be collapsed before the panel reads it, the panel cannot re-read the page by itself, and Chrome refuses injection outright on `chrome://` pages, the Web Store, and the built-in PDF viewer. When capture works the text is pre-filled; when it doesn't, the textarea is already there.
-
----
-
-## Repository layout
-
-```
-athena/
-├── extension/              Chrome extension (MV3) — capture + control surface
-│   ├── manifest.json
-│   ├── background.js       captures the selection; owns the viva window
-│   └── sidepanel.{html,js,css}   paste box + launcher
-├── quickstart/             the Athena app — official Agora Next.js quickstart, extended
-│   ├── app/viva/           the viva surface
-│   ├── app/api/athena/     session, start, summary
-│   ├── components/athena/  viva UI + understanding map
-│   ├── lib/athena/         prompt, control-channel parser, summary renderer
-│   ├── public/demo.html    self-contained study material for the demo
-│   └── scripts/athena-parse.test.ts
-└── docs/
-    ├── architecture.md
-    └── demo-script.md
-```
-
-Everything Athena adds is namespaced under `athena/`. The quickstart's own architecture, token flow, env names, lifecycle, and documented commands are unchanged — the one exception is noted under Known limitations.
+You can also open <http://localhost:3000/demo.html>, highlight a section, and
+click the icon, which pre-fills the box. Highlight capture is best-effort:
+Chrome blocks injection on `chrome://` pages, the Web Store and the built-in PDF
+viewer, and a selection can be collapsed before the panel reads it. Pasting
+always works.
 
 Run the parser tests:
 
@@ -184,56 +166,81 @@ Run the parser tests:
 cd quickstart && node --import tsx scripts/athena-parse.test.ts
 ```
 
----
+## Layout
 
-## External APIs and models
+```
+athena/
+  extension/            Chrome extension (MV3)
+    background.js       selection capture
+    sidepanel.*         paste box, viva UI, revision list
+    viva.js             RTC/RTM session
+    parse.js            control channel reader (port of lib/athena/parse.ts)
+    revision.js         cross-session history
+    vendor/             Agora web SDKs, so there's no build step
+  quickstart/           the Agora Next.js quickstart, extended
+    app/api/athena/     session, token, start, stop, summary, live
+    app/viva/           standalone viva page
+    app/watch/[id]/     read-only second screen
+    components/athena/
+    lib/athena/         prompt, parser, summary renderer
+    scripts/athena-parse.test.ts
+  docs/
+```
 
-| Service | Role | Key needed |
+Everything Athena adds is namespaced under `athena/`. The quickstart's own
+architecture, token flow, env names and commands are unchanged apart from one
+fix noted below.
+
+## Models
+
+| Service | Role | Key |
 |---|---|---|
-| Agora Conversational AI Engine | Agent orchestration and lifecycle | App ID + App Certificate |
-| Agora RTC | Real-time audio transport | same |
-| Agora RTM | Transcripts, agent state, client → agent messages | same |
-| Deepgram `nova-3` | Speech recognition | **no** — resold via Agora |
-| OpenAI `gpt-4o-mini` | Examiner reasoning and the control channel | **no** — resold via Agora |
-| MiniMax `speech_2_6_turbo` | Speech synthesis | **no** — resold via Agora |
+| Agora ConvoAI | Agent orchestration and lifecycle | App ID + Certificate |
+| Agora RTC | Audio | same |
+| Agora RTM | Transcripts, agent state, text injection | same |
+| Deepgram `nova-3` | Speech recognition | none, resold via Agora |
+| OpenAI `gpt-4o-mini` | Examiner reasoning and the control channel | none, resold via Agora |
+| MiniMax `speech_2_6_turbo` | Speech synthesis | none, resold via Agora |
 
----
+## Limitations
 
-## AI limitations and safety
+Athena is a study aid, not a graded assessment. That's on screen during the
+session and at the top of every summary file. She can examine material you give
+her and tell you where you're weak. She can't grade you, replace an examiner, or
+judge material outside the passage.
 
-Athena is a **study aid, not a graded assessment.** That sentence is on screen throughout the session and at the top of every summary file.
+Ways she can be wrong:
 
-**What Athena can do:** examine material you give her, judge spoken answers against that material, adapt her questioning, and tell you where you are weak.
+- Speech recognition mishears technical vocabulary, especially acronyms, so a
+  correct answer can be transcribed into a wrong one.
+- `gpt-4o-mini` is small and can misjudge a subtle but correct answer, or accept
+  a fluent but empty one.
+- Topic quality depends on the passage. A well-structured section gives good
+  topics, a random paragraph gives vague ones.
+- The control channel depends on model compliance. The parser is tolerant, so a
+  dropped payload means a chip updates a turn late rather than a crash, but a
+  chip can lag the conversation.
 
-**What she cannot do:** grade you, replace an examiner, or reliably judge material outside the passage you highlighted. She is not a source of truth about the subject — she is a mirror for your own explanation of it.
+Known limits of the build:
 
-**When she asks instead of guessing.** The prompt instructs Athena that if an answer is ambiguous, off-topic, or otherwise unjudgeable, she must ask a clarifying question and **emit no `mark`**. A topic stays neutral rather than being silently scored wrong. This matters: an unfair amber chip teaches the student the wrong thing about their own understanding.
+- Sessions live in an in-memory `Map`, so they don't survive a server restart or
+  scale across replicas.
+- One speaker. No diarisation, so a second voice in the room is treated as you.
+- English only, per the ASR config.
+- CORS is allowed by origin scheme (`chrome-extension://`, localhost) because
+  unpacked extension IDs aren't known ahead of time. Fine for a local dev
+  server, not for a public deployment.
+- Not deployed. Runs on `localhost:3000`, and the extension's server URL is a
+  constant in `sidepanel.js`.
+- One upstream fix: `tailwind.config.ts` used `require()` inside a TypeScript
+  config, which throws under Node 24+ where the config loads as ESM. Changed to
+  an import. No other sample file was touched.
 
-**Known ways she can be wrong.** Speech recognition mishears technical vocabulary, especially acronyms and unusual names — a correct answer can be transcribed into a wrong one. `gpt-4o-mini` is a small model and can misjudge a subtle but correct answer, or accept a fluent but hollow one. Topic extraction quality depends on the passage: a well-structured section yields good topics, a random paragraph yields vague ones.
+## Next
 
-**Human control.** The student can mute, cut Athena off, redirect her to weak topics with one button, or end the session at any moment. Nothing is recorded server-side beyond the in-memory session, and nothing is sent anywhere except Agora's pipeline.
-
-**Failure behaviour.** Every failure mode surfaces visibly rather than hanging: the extension reports an unreachable server with the command to start it; a failed agent start shows an error with a retry; pipeline errors from `AGENT_ERROR` / `MESSAGE_ERROR` render in an alert strip; a failed summary still ends the session cleanly.
-
----
-
-## Known limitations
-
-- **Single user, single machine.** Sessions live in an in-memory `Map` and do not survive a server restart or scale across replicas.
-- **One speaker.** No diarisation — a second voice in the room is treated as the student.
-- **English only**, per the ASR configuration.
-- **The viva is a separate window, not an embedded panel.** Forced by Chrome's microphone permission model, not a preference — see the architecture note above. Closing that window ends the viva.
-- **Highlight capture is best-effort.** Chrome blocks injection on `chrome://` pages, the Web Store, and the built-in PDF viewer, and a selection can be collapsed before the panel reads it. Pasting is the primary path and is unaffected.
-- **CORS is permissive by origin scheme** (`chrome-extension://`, `localhost`) because unpacked extension IDs are not known ahead of time. Fine for a local dev server; not suitable for public deployment as written.
-- **The control channel depends on model compliance.** `gpt-4o-mini` occasionally omits or malforms the payload. The parser is tolerant — a dropped payload means a chip updates one turn later, never a crash — but a chip can lag the conversation.
-- **One upstream fix to the quickstart.** `tailwind.config.ts` used `require()` inside a TypeScript config, which throws under Node 24+ where the config loads as ESM. Changed to an `import`. No other sample file was modified.
-- **Not deployed.** Runs on `localhost:3000`. The extension's server URL is a constant in `sidepanel.js`.
-
----
-
-## Where this goes next
-
-- **Study groups.** Several students in one RTC channel, Athena examining them in turn and comparing understanding maps — the collaborative-education case the architecture already supports.
-- **Teacher-facing analytics.** Aggregate understanding maps across a cohort show which concepts a whole class is amber on, which is the signal a lecturer actually wants.
-- **Spaced repetition.** Weak topics from a session scheduled back for a second viva days later, so recovery is measured rather than assumed.
-- **Persistent memory across sessions**, so Athena can open with "last week you struggled with isolation levels — let's start there."
+- Several students in one channel, examined in turn, with their maps compared.
+- Aggregate maps across a class, so a lecturer can see which concept everyone is
+  amber on.
+- Spaced repetition: weak topics scheduled back for a second viva days later.
+- Memory across sessions, so she can open with "last week you struggled with
+  isolation levels, let's start there."

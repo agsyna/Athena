@@ -1,35 +1,21 @@
-/**
- * Athena revision history.
- *
- * A viva is a single session; revision is what happens across all of them. This
- * module owns the record of every viva the student has started and turns it
- * into one list of topics ranked by how badly they need another look.
- *
- * The history lives in `chrome.storage.local`, not on the server. The server's
- * session store is deliberately in-memory — it holds a passage for the minutes a
- * viva takes and forgets it — so anything meant to survive a restart, a laptop
- * lid, or a week between study sessions has to live in the extension. That also
- * keeps the record on the student's machine, which is where an account of what
- * someone is bad at belongs.
- */
+// Revision history: every viva the user has started, rolled up into one list of
+// topics ranked by how much they still need work.
+//
+// Kept in chrome.storage.local rather than on the server. The server store is
+// in-memory and forgets a session as soon as it's done, so anything that has to
+// survive a restart lives here. It also keeps the record on the user's machine.
 
 (function () {
   const HISTORY_KEY = 'athena:history';
 
-  /** Past this, the oldest vivas are dropped rather than grown forever. */
   const MAX_RECORDS = 40;
-  /**
-   * How much of the passage each record keeps.
-   *
-   * Enough to re-examine from, and no more. The prompt truncates at 6000
-   * characters anyway, so storing the full 20000 a session accepts would buy
-   * nothing and multiply the storage by forty.
-   */
+  // Enough to re-examine from. The prompt truncates at 6000 chars anyway, so
+  // keeping the full 20000 a session accepts would just waste storage.
   const MAX_PASSAGE = 4000;
-  /** A viva still unfinished after this long was abandoned, not left running. */
+  // Unfinished after this long means abandoned, not still running.
   const ABANDON_MS = 12 * 60 * 60 * 1000;
 
-  /** Worst first. Drives the default ordering and the "needs work" counts. */
+  // Worst first. Drives the default sort and the "needs work" count.
   const WEAKNESS = {
     wrong: 0,
     partial: 1,
@@ -46,7 +32,7 @@
     correct: 'understood',
   };
 
-  // ── Storage ───────────────────────────────────────────────────────────────────
+  // --- Storage ---
 
   async function load() {
     const data = await chrome.storage.local.get(HISTORY_KEY);
@@ -60,14 +46,9 @@
     });
   }
 
-  /**
-   * Opens a record the moment a viva starts, rather than when it ends.
-   *
-   * A viva that crashes, or whose window is closed halfway, is still evidence of
-   * what the student was working on — and its topics are recovered by the next
-   * reconcile. Waiting for a clean ending would lose exactly the sessions that
-   * went badly, which are the ones revision is for.
-   */
+  // Records open at the start of a viva, not the end. A session that crashes or
+  // gets closed halfway is still worth keeping, and reconcile() fills in its
+  // topics later. Waiting for a clean ending would lose the worst sessions.
   async function openRecord(record) {
     const records = await load();
     const next = [
@@ -85,14 +66,9 @@
     await save(next);
   }
 
-  /**
-   * Brings open records up to date from the server's live state.
-   *
-   * Called when the panel mounts, on a timer while a viva runs, and when the viva
-   * window closes. The server may be down or may have forgotten the session — in
-   * both cases the record keeps whatever it last saw, which is the point of
-   * mirroring it here at all.
-   */
+  // Refreshes open records from the server's live state. Called on mount, on a
+  // timer during a viva, and when one ends. If the server is down or has
+  // forgotten the session the record just keeps whatever it last saw.
   async function reconcile(server) {
     const records = await load();
     const unfinished = records.filter((r) => !r.endedAt);
@@ -117,7 +93,7 @@
           if (!response.ok) return;
           live = (await response.json()).live;
         } catch {
-          // Server asleep. The record stands as it is.
+          // Server's down, leave the record alone.
           return;
         }
 
@@ -138,7 +114,7 @@
     return records;
   }
 
-  /** Marks a session finished locally, for when the window closed on its own. */
+  // Marks a session finished locally, for when the panel closed on its own.
   async function closeRecord(sessionId) {
     const records = await load();
     const record = records.find((r) => r.sessionId === sessionId);
@@ -151,21 +127,15 @@
     await chrome.storage.local.remove(HISTORY_KEY);
   }
 
-  // ── Aggregation ───────────────────────────────────────────────────────────────
+  // --- Aggregation ---
 
-  /**
-   * Folds every session's topics into one list, one entry per topic.
-   *
-   * The status shown is the **most recent** one, not the worst ever seen: the
-   * question revision answers is "where am I now", and a topic recovered last
-   * week should not keep showing red because of the session before it. What the
-   * older sessions contribute is `everStruggled`, which is how a recovery stays
-   * visible without distorting the ranking.
-   */
+  // Collapses every session's topics into one entry per topic. The status shown
+  // is the most recent one, not the worst ever: a topic recovered last week
+  // shouldn't still show red. Older sessions only contribute everStruggled.
   function aggregate(records) {
     const byKey = new Map();
 
-    // Oldest first, so the last write per topic is genuinely the most recent.
+    // Oldest first, so the last write per topic really is the latest.
     const ordered = [...records].sort((a, b) => a.startedAt - b.startedAt);
 
     for (const record of ordered) {
@@ -187,7 +157,8 @@
           sources: [],
         };
 
-        entry.name = topic.name.trim();
+        // Status follows the latest sitting, but the display name doesn't: a
+        // revision session echoing back different casing shouldn't rename it.
         entry.status = topic.status;
         entry.sessions += 1;
         entry.attempts += Number(topic.attempts) || 0;
@@ -216,7 +187,7 @@
     alpha: (a, b) => a.name.localeCompare(b.name),
   };
 
-  /** Applies the student's chosen sort and status filter to the aggregate. */
+  // Applies the chosen sort and status filter.
   function shape(entries, { sort = 'weakest', statuses = null } = {}) {
     const filtered = statuses?.size
       ? entries.filter((e) => statuses.has(e.status))
@@ -224,14 +195,9 @@
     return [...filtered].sort(SORTS[sort] ?? SORTS.weakest);
   }
 
-  /**
-   * The passages behind a set of topics, deduplicated and joined.
-   *
-   * Selecting topics from three different sessions has to produce one passage,
-   * because a viva examines one body of material. Sources are separated by a rule
-   * so the model can tell that it is looking at three excerpts rather than one
-   * argument that keeps changing subject.
-   */
+  // Rebuilds one passage from the sessions a set of topics came from. A viva
+  // examines a single body of material, so excerpts get joined with a rule
+  // between them rather than run together into one confusing block.
   function passageFor(records, keys) {
     const wanted = new Set(keys);
     const seen = new Set();
@@ -255,7 +221,7 @@
     return parts.join('\n\n---\n\n');
   }
 
-  /** The revision list as a file the student can keep or hand to a tutor. */
+  // The revision list as a file you can keep or hand to a tutor.
   function toMarkdown(entries, records) {
     const date = new Date().toLocaleDateString(undefined, {
       day: 'numeric',
@@ -264,7 +230,7 @@
     });
     const weak = entries.filter((e) => e.status === 'wrong' || e.status === 'partial');
     const lines = [
-      '# Athena — revision list',
+      '# Athena revision list',
       '',
       `${date} · ${entries.length} topic${entries.length === 1 ? '' : 's'} across ${records.length} viva${records.length === 1 ? '' : 's'}`,
       '',
@@ -276,7 +242,7 @@
       lines.push('## Revise these first', '');
       for (const e of weak) {
         lines.push(
-          `- **${e.name}** — ${STATUS_LABEL[e.status]} (examined ${e.attempts} time${e.attempts === 1 ? '' : 's'} across ${e.sessions} session${e.sessions === 1 ? '' : 's'})`,
+          `- **${e.name}**: ${STATUS_LABEL[e.status]} (examined ${e.attempts} time${e.attempts === 1 ? '' : 's'} across ${e.sessions} session${e.sessions === 1 ? '' : 's'})`,
         );
       }
       lines.push('');
@@ -284,8 +250,8 @@
 
     lines.push('## Everything you have been examined on', '');
     for (const e of [...entries].sort(SORTS.weakest)) {
-      const badge = e.redeemed ? ' · recovered on a second attempt' : '';
-      lines.push(`- **${e.name}** — ${STATUS_LABEL[e.status]}${badge}`);
+      const badge = e.redeemed ? ' (recovered on a second attempt)' : '';
+      lines.push(`- **${e.name}**: ${STATUS_LABEL[e.status]}${badge}`);
     }
 
     return lines.join('\n');

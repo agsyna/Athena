@@ -3,15 +3,11 @@ import { getSession, updateSession } from '@/lib/athena/store';
 import { preflight, withCors } from '@/lib/athena/cors';
 import type { Topic } from '@/lib/athena/types';
 
-/**
- * The live channel between a running viva and anyone watching it.
- *
- * Deliberately plain HTTP rather than a second RTM channel. A watcher is not a
- * participant — they have no microphone, no token, and no business in the RTC
- * channel — and giving them one would mean issuing credentials to a URL anyone
- * with the link can open. Polling a few small objects a second is the cheaper
- * and safer shape for a read-only shoulder-surf.
- */
+// Live channel between a running viva and anyone watching it.
+//
+// Plain HTTP rather than a second RTM channel. A watcher isn't a participant,
+// and putting them in the channel would mean handing RTC credentials to anyone
+// with the link. Polling a couple of small objects a second is cheaper anyway.
 
 export async function OPTIONS(request: NextRequest) {
   return preflight(request);
@@ -30,15 +26,9 @@ function sanitiseTopics(input: unknown): Topic[] {
     }));
 }
 
-/**
- * Two callers, one route.
- *
- * The viva window POSTs its map on a short heartbeat and gets back any waiting
- * nudge — so the same request that publishes state also collects instructions,
- * and there is no second polling loop to keep alive.
- *
- * The watch page POSTs `{ nudge }` to ask Athena to return to a topic.
- */
+// Two callers. The viva POSTs its map on a heartbeat and gets any waiting nudge
+// back in the same response, so there's no second polling loop. The watch page
+// POSTs { nudge } to ask Athena to go back to a topic.
 export async function POST(request: NextRequest) {
   let body: {
     sessionId?: string;
@@ -59,7 +49,7 @@ export async function POST(request: NextRequest) {
     return withCors(request, { error: 'Unknown session' }, { status: 404 });
   }
 
-  // A watcher asking for an intervention.
+  // A watcher asking Athena to double back.
   if (typeof body.nudge === 'string' && body.nudge.trim()) {
     updateSession(id, {
       nudge: { topic: body.nudge.trim().slice(0, 60), at: Date.now() },
@@ -77,15 +67,14 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Hand over any pending nudge exactly once — a second delivery would make
-  // Athena double back twice on one press.
+  // Deliver a pending nudge once only, or one press makes her double back twice.
   const nudge = session.nudge ?? null;
   if (nudge) updateSession(id, { nudge: undefined });
 
   return withCors(request, { ok: true, nudge });
 }
 
-/** What the watch page reads. Never exposes the passage or the transcript. */
+// What the watch page reads. Doesn't expose the passage or the transcript.
 export async function GET(request: NextRequest) {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return withCors(request, { error: 'id is required' }, { status: 400 });

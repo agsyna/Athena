@@ -42,9 +42,8 @@ export interface VivaSessionProps {
   rtmClient: RTMClient;
   onTokenWillExpire: (uid: string) => Promise<{ rtcToken: string; rtmToken: string }>;
   /**
-   * Hands the finished session upward. The summary must be rendered by a
-   * component that survives RTC teardown — this one is unmounted the moment the
-   * RTM client is released.
+   * Hands the finished session up. The summary has to be rendered by something
+   * that survives teardown, since this unmounts as soon as RTM is released.
    */
   onEnd: (result: VivaResult) => void;
 }
@@ -80,7 +79,7 @@ const ORB_CAPTION: Record<OrbState, string> = {
   offline: 'Connecting…',
   listening: 'Listening',
   thinking: 'Thinking',
-  speaking: 'Athena is speaking — cut in any time',
+  speaking: 'Athena is speaking, cut in any time',
 };
 
 export default function VivaSession({
@@ -104,33 +103,26 @@ export default function VivaSession({
   const [ending, setEnding] = useState(false);
 
   const [topics, setTopics] = useState<Topic[]>([]);
-  /**
-   * The last thing the student asked about that the passage does not cover.
-   *
-   * Athena declines it out loud, but speech is gone the moment it is said.
-   * Keeping it here puts the refusal on screen beside the map, where the
-   * student can see that the blank space was a decision and not an oversight.
-   */
+  // Last thing asked about that the passage doesn't cover. Athena declines it
+  // out loud, but speech is gone the moment it's said, so keep it on screen.
   const [outsideAsk, setOutsideAsk] = useState<string | null>(null);
   const [rawTranscript, setRawTranscript] = useState<
     TranscriptHelperItem<Partial<UserTranscription | AgentTranscription>>[]
   >([]);
 
   const aiRef = useRef<AgoraVoiceAI | null>(null);
-  // State, not just the ref: effects that wait on the toolkit need a render to
-  // react to it becoming available.
+  // State as well as the ref, so effects waiting on the toolkit get a render.
   const [aiReady, setAiReady] = useState(false);
   const startedAt = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
-  // Control payloads already folded into topic state. Keyed by turn plus payload
-  // so the same judgement arriving twice — once mid-turn, once on the restored
-  // final text — can never double-count an attempt.
+  // Payloads already applied. Keyed by turn plus payload, so the same judgement
+  // arriving twice (mid-turn and again on the final text) can't double-count.
   const appliedControls = useRef<Set<string>>(new Set());
 
-  // ── RTC join, mirroring the quickstart's StrictMode-safe pattern ──────────
-  // React StrictMode fires cleanup synchronously before any setTimeout callback,
-  // so only the real mount's timer survives and useJoin joins exactly once.
+  // RTC join, same StrictMode-safe pattern as the quickstart. StrictMode fires
+  // cleanup synchronously before any setTimeout callback, so only the real
+  // mount's timer survives and useJoin runs once.
   const [isReady, setIsReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -154,19 +146,14 @@ export default function VivaSession({
     isReady,
   );
 
-  // Do NOT gate on micEnabled — that ties track lifetime to mute state.
-  // Mute goes through track.setEnabled() only.
+  // Don't gate this on micEnabled, that ties track lifetime to mute state.
+  // Mute goes through track.setEnabled().
   const { localMicrophoneTrack, error: micError } = useLocalMicrophoneTrack(isReady);
   usePublish([localMicrophoneTrack]);
 
-  /**
-   * Microphone recovery.
-   *
-   * When the viva is auto-started from the extension panel there is no user
-   * gesture inside this document, and Chrome can refuse the microphone without
-   * ever showing a prompt. This button supplies the gesture directly, then
-   * reloads so the track is created with the permission already granted.
-   */
+  // Auto-starting from the panel means there's no user gesture in this
+  // document, and Chrome can refuse the mic without ever prompting. This button
+  // supplies the gesture, then reloads so the track is made with the grant.
   const [micRetryFailed, setMicRetryFailed] = useState(false);
   const requestMicrophone = useCallback(async () => {
     try {
@@ -183,7 +170,7 @@ export default function VivaSession({
     try {
       (AgoraRTC as AgoraRtcWithParameters).setParameter?.('ENABLE_AUDIO_PTS', true);
     } catch {
-      // Non-fatal: only affects word-level transcript timing, which Athena does not use.
+      // Only affects word-level transcript timing, which Athena doesn't use.
     }
   }, [client]);
 
@@ -193,13 +180,13 @@ export default function VivaSession({
     }
   }, [joinSuccess, client]);
 
-  // ── Session clock ────────────────────────────────────────────────────────
+  // --- Session clock ---
   useEffect(() => {
     const id = setInterval(() => setElapsed(Date.now() - startedAt.current), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // ── Toolkit init ─────────────────────────────────────────────────────────
+  // --- Toolkit init ---
   useEffect(() => {
     if (!isReady || !joinSuccess) return;
     let cancelled = false;
@@ -220,7 +207,7 @@ export default function VivaSession({
               ai.destroy();
             }
           } catch {
-            // Instance already torn down.
+            // Already torn down.
           }
           return;
         }
@@ -228,7 +215,7 @@ export default function VivaSession({
         aiRef.current = ai;
         setAiReady(true);
 
-        // TRANSCRIPT_UPDATED delivers the FULL history each time — replace, never append.
+        // TRANSCRIPT_UPDATED sends the full history each time, so replace.
         ai.on(AgoraVoiceAIEvents.TRANSCRIPT_UPDATED, (t) => setRawTranscript([...t]));
         ai.on(AgoraVoiceAIEvents.AGENT_STATE_CHANGED, (_, event) => setAgentState(event.state));
         ai.on(AgoraVoiceAIEvents.AGENT_ERROR, (_, error) =>
@@ -265,7 +252,7 @@ export default function VivaSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, joinSuccess]);
 
-  // ── Agent presence ───────────────────────────────────────────────────────
+  // --- Agent presence ---
   useClientEvent(client, 'user-joined', (user) => {
     if (user.uid.toString() === agentUID) setIsAgentConnected(true);
   });
@@ -277,15 +264,9 @@ export default function VivaSession({
   }, [remoteUsers, agentUID]);
   useClientEvent(client, 'connection-state-change', (state) => setConnectionState(state));
 
-  /**
-   * RTM health.
-   *
-   * Voice and text arrive over two different connections: audio on RTC, and
-   * transcripts, agent state and control payloads on RTM. When RTM fails, the
-   * viva looks alive — Athena is audibly speaking — while the transcript stays
-   * empty and no chip ever moves, with nothing on screen to explain why. Both
-   * signals below exist to make that state legible instead of baffling.
-   */
+  // Audio comes over RTC, transcripts and control payloads over RTM. If RTM
+  // dies the viva still sounds alive while the transcript stays empty and no
+  // chip moves, so both signals below exist to make that visible.
   const [rtmDown, setRtmDown] = useState<string | null>(null);
   useEffect(() => {
     const onLinkState = (event: {
@@ -303,8 +284,7 @@ export default function VivaSession({
       }
     };
 
-    // The typings expose this through an event map; the structural shape above
-    // is all this component needs from it.
+    // The typings go through an event map, but this is all this component needs.
     const client = rtmClient as unknown as {
       addEventListener: (name: string, fn: typeof onLinkState) => void;
       removeEventListener: (name: string, fn: typeof onLinkState) => void;
@@ -313,18 +293,10 @@ export default function VivaSession({
     return () => client.removeEventListener('linkState', onLinkState);
   }, [rtmClient]);
 
-  /**
-   * Silence watchdog.
-   *
-   * Two different failures look identical to a student — an empty screen — and
-   * both need saying out loud. Either the agent never joined the channel at
-   * all, or it joined and is audibly speaking while nothing arrives over RTM.
-   *
-   * Deliberately armed on `aiReady` alone. An earlier version also required
-   * `isAgentConnected`, which meant the worse failure — the agent never
-   * arriving — never armed the timer and so was the one case that reported
-   * nothing whatsoever.
-   */
+  // Two failures look the same from the outside (an empty screen): the agent
+  // never joined, or it joined and RTM is dead. Armed on aiReady alone. An
+  // earlier version also required isAgentConnected, which meant the worse of
+  // the two never armed the timer at all.
   const [rtmSilent, setRtmSilent] = useState(false);
   useEffect(() => {
     if (!aiReady) return;
@@ -336,21 +308,16 @@ export default function VivaSession({
     return () => clearTimeout(id);
   }, [aiReady, rawTranscript.length, agentState]);
 
-  // ── Kick off the viva ────────────────────────────────────────────────────
-  /**
-   * The engine speaks a fixed greeting on join, but a fixed string cannot carry
-   * the topic list. Injecting one system turn makes Athena take her first real
-   * turn — topics plus opening question — without waiting for the student to
-   * speak first.
-   *
-   * Both conditions must be render-visible. Waiting on `aiRef.current` alone
-   * silently never fired: the agent usually joins before the async toolkit init
-   * resolves, and a ref changing does not re-run an effect.
-   *
-   * APPEND rather than a timer: the engine queues the message behind whatever
-   * the agent is currently saying, so the opening question cannot collide with
-   * the greeting and there is no delay to guess at.
-   */
+  // --- Kick off the viva ---
+  // The engine speaks a fixed greeting on join, but that can't carry the topic
+  // list, so inject one system turn to get Athena talking.
+  //
+  // Both conditions have to be render-visible. Waiting on aiRef.current alone
+  // silently never fired: the agent usually joins before the toolkit init
+  // resolves, and a ref changing doesn't re-run an effect.
+  //
+  // APPEND rather than a timer, so the engine queues this behind the greeting
+  // and there's no delay to guess at.
   const kickedOff = useRef(false);
   useEffect(() => {
     if (kickedOff.current || !aiReady || !isAgentConnected || !aiRef.current) return;
@@ -366,14 +333,13 @@ export default function VivaSession({
           responseInterruptable: true,
         })
         .catch(() => {
-          // RTM can still be settling immediately after join. Retry once before
-          // telling the student to take the first move themselves.
+          // RTM can still be settling right after join, so retry once.
           if (attempt < 1) {
             attempt += 1;
             setTimeout(send, 1500);
           } else {
             setPipelineError(
-              'Athena did not pick up the passage automatically — say "I am ready" to start her off.',
+              'Athena did not pick up the passage automatically. Say "I am ready" to start her off.',
             );
           }
         });
@@ -382,7 +348,7 @@ export default function VivaSession({
     send();
   }, [aiReady, isAgentConnected, agentUID]);
 
-  // ── Read the silent control channel ──────────────────────────────────────
+  // --- Read the control channel ---
   const transcript = useMemo(
     () => normalizeTranscript(rawTranscript, String(client.uid)),
     [rawTranscript, client.uid],
@@ -418,8 +384,8 @@ export default function VivaSession({
 
     if (changed) setTopics(pending);
     if (outside) setOutsideAsk(outside);
-    // `topics` is intentionally omitted: it is folded in via `pending`, and
-    // including it would re-run this effect on its own output.
+    // topics is left out on purpose: it comes in via `pending`, and including
+    // it would re-run this effect on its own output.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, agentUID]);
 
@@ -445,7 +411,7 @@ export default function VivaSession({
     [visibleTurns],
   );
 
-  // ── Controls ─────────────────────────────────────────────────────────────
+  // --- Controls ---
   const handleMicToggle = useCallback(async () => {
     const next = !micEnabled;
     if (!localMicrophoneTrack) {
@@ -460,14 +426,9 @@ export default function VivaSession({
     }
   }, [micEnabled, localMicrophoneTrack]);
 
-  /**
-   * Typed answers.
-   *
-   * Speech is the point of a viva, but it is not always available: a noisy
-   * room, a mis-heard technical term, or a student who would rather write.
-   * Typed input travels the same RTM path as speech, so Athena answers it the
-   * same way and it lands in the transcript and the summary identically.
-   */
+  // Speech is the point, but it isn't always usable: a noisy room, a misheard
+  // acronym, or someone who'd rather type. Typed input goes down the same RTM
+  // path, so it lands in the transcript and summary identically.
   const [typed, setTyped] = useState('');
   const handleTypedSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -479,7 +440,7 @@ export default function VivaSession({
         .sendText(agentUID, {
           messageType: ChatMessageType.TEXT,
           text,
-          // Typing while Athena talks is the same intent as talking over her.
+          // Typing while she talks means the same thing as talking over her.
           priority: ChatMessagePriority.INTERRUPTED,
           responseInterruptable: true,
         })
@@ -488,18 +449,14 @@ export default function VivaSession({
     [typed, agentUID],
   );
 
-  /** Barge-in from the UI, for when talking over Athena is impractical. */
+  /** Barge-in button, for when talking over her isn't practical. */
   const handleInterrupt = useCallback(() => {
     aiRef.current?.interrupt(agentUID).catch(() => {
-      // Interruption is best-effort; speaking over Athena still works.
+      // Best-effort. Speaking over her still works.
     });
   }, [agentUID]);
 
-  /**
-   * Steers Athena back to what the student has not got yet. This is the
-   * human-control lever: the student, not the model, decides to spend the
-   * remaining time on weak topics.
-   */
+  /** Lets the student, not the model, spend the rest of the time on weak topics. */
   const weakTopics = useMemo(
     () => topics.filter((t) => t.status === 'wrong' || t.status === 'partial'),
     [topics],
@@ -518,19 +475,14 @@ export default function VivaSession({
       .catch(() => setPipelineError('Could not send that to Athena.'));
   }, [weakTopics, agentUID]);
 
-  /**
-   * Mirrors the map to the watch view, and collects anything a watcher asked
-   * for while it was there.
-   *
-   * One heartbeat does both jobs. Publishing on a timer rather than on every
-   * change also means a watcher who opens the page mid-session sees the map
-   * within a second instead of waiting for the next judgement to land.
-   */
+  // Mirrors the map to the watch view and picks up anything a watcher asked
+  // for, in one heartbeat. On a timer rather than on change, so a watcher who
+  // opens the page mid-session sees the map without waiting for a judgement.
   const topicsRef = useRef(topics);
   topicsRef.current = topics;
   const outsideRef = useRef(outsideAsk);
   outsideRef.current = outsideAsk;
-  /** Latches on end, so a heartbeat in flight cannot reopen a closed viva. */
+  /** Latches on end, so an in-flight heartbeat can't reopen a closed viva. */
   const endedRef = useRef(false);
 
   useEffect(() => {
@@ -555,9 +507,7 @@ export default function VivaSession({
         const topic = data.nudge?.topic;
         if (!topic) return;
 
-        // Same injection path as the student's own "weak topics" button — a
-        // watcher steering the viva is the same kind of event, from a different
-        // pair of hands.
+        // Same injection path as the student's own "weak topics" button.
         aiRef.current
           ?.sendText(agentUID, {
             messageType: ChatMessageType.TEXT,
@@ -566,11 +516,10 @@ export default function VivaSession({
             responseInterruptable: true,
           })
           .catch(() => {
-            // A missed nudge is not worth an error card mid-viva; the watcher
-            // can press again.
+            // Not worth an error card mid-viva, they can press again.
           });
       } catch {
-        // The watch channel is a convenience. It must never break the viva.
+        // The watch channel is a nice-to-have, never break the viva over it.
       }
     };
 
@@ -589,7 +538,7 @@ export default function VivaSession({
       await client?.renewToken(rtcToken);
       await rtmClient.renewToken(rtmToken);
     } catch {
-      setPipelineError('Session token could not be renewed — the viva may end shortly.');
+      setPipelineError('Session token could not be renewed, the viva may end shortly.');
     }
   }, [client, joinedUID, onTokenWillExpire, rtmClient]);
 
@@ -627,9 +576,8 @@ export default function VivaSession({
       error = 'Your viva is over, but the summary could not be built.';
     }
 
-    // Final publish, so a watcher's page settles on "ended" and the extension's
-    // revision history records this viva as finished rather than abandoned.
-    // Best-effort: the summary is already in hand and must not wait on it.
+    // Final publish so the watch page settles on "ended" and the revision
+    // history records this as finished. Best-effort, the summary is already in.
     void fetch('/api/athena/live', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -773,7 +721,7 @@ export default function VivaSession({
           <p className="mb-2 leading-snug">
             {micRetryFailed
               ? 'Chrome is still blocking the microphone. Click the microphone icon in the address bar, choose Allow, then reload this window.'
-              : 'Athena cannot hear you — the microphone was not granted.'}
+              : 'Athena cannot hear you, the microphone was not granted.'}
           </p>
           {!micRetryFailed && (
             <button
@@ -876,12 +824,7 @@ export default function VivaSession({
   );
 }
 
-/**
- * The share affordance for the watch view.
- *
- * Kept to one line: a tutor watching is an option, not the point of the
- * session, and a student mid-viva should not be reading UI about it.
- */
+/** Copies a read-only watch link. One line, it isn't the point of the screen. */
 function WatchLink({ sessionId }: { sessionId: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -894,7 +837,7 @@ function WatchLink({ sessionId }: { sessionId: string }) {
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
-        // Clipboard can be refused; the link is still on screen to read.
+        // Clipboard can be refused, but the link is on screen anyway.
       });
   }, [sessionId]);
 

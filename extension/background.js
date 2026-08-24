@@ -1,20 +1,11 @@
-/**
- * Athena service worker.
- *
- * Its whole job is to capture what the student highlighted at the moment they
- * ask for a viva, and hand it to the side panel.
- *
- * The capture has to happen here rather than in the panel because `activeTab`
- * is granted in response to the user's click on the toolbar icon or context
- * menu, and the panel itself has no access to the page. The selection is parked
- * in session storage — it lives for the browser session only and never touches
- * disk.
- */
+// Service worker. Grabs whatever is highlighted when the user clicks the icon
+// and stashes it for the side panel. It has to happen here: activeTab is only
+// granted on the click, and the panel can't reach into the page itself.
 
 const SELECTION_KEY = 'athena:selection';
 const CONTEXT_MENU_ID = 'athena-start-viva';
 
-/** Runs in the page. Must be self-contained — it is serialised across contexts. */
+// Injected into the page, so it can't close over anything out here.
 function readSelection() {
   const selection = window.getSelection();
   return {
@@ -33,8 +24,7 @@ async function captureFromTab(tab) {
     });
     return result?.result ?? null;
   } catch {
-    // Injection is refused on chrome:// pages, the Web Store, and the built-in
-    // PDF viewer. The panel handles a null capture with a readable message.
+    // chrome:// pages, the Web Store and the PDF viewer refuse injection.
     return null;
   }
 }
@@ -46,22 +36,15 @@ async function stash(capture, tab) {
       title: capture?.title ?? tab?.title ?? '',
       url: capture?.url ?? tab?.url ?? '',
       capturedAt: Date.now(),
-      // Distinguishes "nothing was highlighted" from "this page cannot be read".
+      // Lets the panel tell "nothing highlighted" from "can't read this page".
       injectable: capture !== null,
     },
   });
 }
 
-/**
- * The capture belonging to the most recent click, while it is still running.
- *
- * `chrome.sidePanel.open()` may only be called in the same turn as the gesture
- * that triggered it, and a single `await` beforehand already spends that
- * gesture. So the panel is opened first and the selection is captured after,
- * which means the panel can ask for the selection before it has been written.
- * Holding the promise here lets `get-selection` wait for the capture belonging
- * to this click instead of answering with the previous one.
- */
+// sidePanel.open() must run in the same tick as the click, and a single await
+// spends the gesture. So: open first, capture after. Keeping the in-flight
+// capture here lets get-selection wait for it instead of returning stale text.
 let pendingStash = null;
 
 function trackStash(work) {
@@ -69,7 +52,7 @@ function trackStash(work) {
   return pendingStash;
 }
 
-/** Opens the panel for `tab`. Call this before anything that awaits. */
+// Call this before any await (see pendingStash).
 function openPanel(tab) {
   chrome.sidePanel
     .open({ tabId: tab.id })
@@ -92,8 +75,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== CONTEXT_MENU_ID || !tab?.id) return;
-  // The context menu hands us the selection directly, which also covers frames
-  // where a scripting injection would return the parent document's selection.
+  // The menu event carries the selection already, and gets it right in iframes.
   openPanel(tab);
   trackStash(
     stash(
@@ -107,92 +89,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   );
 });
 
-/**
- * Opens the viva in its own window, parked against the right edge of the
- * browser window the student is reading in.
- *
- * A window rather than a frame inside the panel: a cross-origin frame in a
- * chrome-extension:// page is a separate microphone permission context, so
- * Chrome neither inherits an existing grant for localhost nor reliably lets the
- * prompt be answered from the panel. A top-level window has neither problem.
- */
-const VIVA_WINDOW = { width: 460, height: 860 };
-
-async function openVivaWindow(url) {
-  let placement = {};
-  try {
-    const current = await chrome.windows.getCurrent();
-    if (current?.left != null && current?.width != null) {
-      placement = {
-        left: Math.max(0, current.left + current.width - VIVA_WINDOW.width - 24),
-        top: Math.max(0, (current.top ?? 0) + 24),
-      };
-    }
-  } catch {
-    // Fall back to wherever Chrome wants to put it.
-  }
-
-  try {
-    const win = await chrome.windows.create({
-      url,
-      type: 'popup',
-      focused: true,
-      ...VIVA_WINDOW,
-      ...placement,
-    });
-    return { windowId: win.id };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-/**
- * Tell the panel when the viva window goes away, so it can offer a new passage
- * instead of pointing at a window that no longer exists.
- */
-chrome.windows.onRemoved.addListener((windowId) => {
-  chrome.runtime
-    .sendMessage({ type: 'athena:window-closed', windowId })
-    .catch(() => {
-      // No panel listening; nothing to tell.
-    });
-});
-
-/**
- * Panel messages.
- *
- * `get-selection` returns whatever was stashed at click time — what the panel
- * reads when it first mounts.
- *
- * `recapture` re-reads the live page instead. The panel uses it when the
- * student explicitly asks for the highlighted text, because the stash can be
- * older than what is currently selected. `activeTab` stays granted for the tab
- * once the student has clicked the icon, so this normally succeeds without a
- * fresh gesture; when it does not, the panel falls back to the textarea.
- */
+// get-selection: whatever was stashed on the click, read when the panel mounts.
+// recapture: re-read the page now. The panel uses this when the user asks for
+// the highlight explicitly, since the stash can be older than the selection.
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'athena:get-selection') {
     (async () => {
-      // Wait for the click's own capture, which is still in flight whenever the
-      // panel mounts faster than the page can be read.
+      // The panel usually mounts before the capture finishes.
       await pendingStash;
       const data = await chrome.storage.session.get(SELECTION_KEY);
       sendResponse(data[SELECTION_KEY] ?? null);
     })();
     return true; // keep the channel open for the async response
-  }
-
-  if (message?.type === 'athena:open-window') {
-    openVivaWindow(message.url).then(sendResponse);
-    return true;
-  }
-
-  if (message?.type === 'athena:focus-window') {
-    chrome.windows
-      .update(message.windowId, { focused: true, drawAttention: true })
-      .then(() => sendResponse({ ok: true }))
-      .catch(() => sendResponse({ ok: false }));
-    return true;
   }
 
   if (message?.type === 'athena:recapture') {

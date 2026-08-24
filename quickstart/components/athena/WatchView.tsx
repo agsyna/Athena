@@ -5,7 +5,7 @@ import type { LiveState, Topic } from '@/lib/athena/types';
 import { UnderstandingMap } from './UnderstandingMap';
 
 const POLL_MS = 1000;
-/** Past this with no heartbeat, the viva window is gone rather than quiet. */
+// No heartbeat for this long means the viva is gone, not just quiet.
 const STALE_MS = 6000;
 
 export function WatchView({ sessionId }: { sessionId: string }) {
@@ -39,7 +39,7 @@ export function WatchView({ sessionId }: { sessionId: string }) {
         setTitle(data.source_title);
         setNow(Date.now());
       } catch {
-        // A dropped poll is not worth showing; the next one is a second away.
+        // Next poll is a second away, no point surfacing a dropped one.
       }
     };
 
@@ -64,8 +64,8 @@ export function WatchView({ sessionId }: { sessionId: string }) {
         setNudged(null);
         return;
       }
-      // The button is a request, not a guarantee — Athena finishes her current
-      // sentence first. Release it rather than leaving it stuck on.
+      // It's a request, not a guarantee: she finishes her sentence first. Let
+      // the button go rather than leaving it stuck down.
       setTimeout(() => setNudged((t) => (t === topic ? null : t)), 4000);
     },
     [sessionId],
@@ -125,7 +125,7 @@ export function WatchView({ sessionId }: { sessionId: string }) {
                     data-status={t.status}
                   >
                     <span className="athena-chip-dot" aria-hidden />
-                    {nudged === t.name ? `asked — ${t.name}` : t.name}
+                    {nudged === t.name ? `asked: ${t.name}` : t.name}
                   </button>
                 ))}
               </div>
@@ -133,7 +133,7 @@ export function WatchView({ sessionId }: { sessionId: string }) {
           </section>
 
           <p className="mt-auto pt-2 text-[11px] leading-snug text-[var(--athena-text-dim)]">
-            You are seeing the assessment, not the conversation — no transcript
+            You are seeing the assessment, not the conversation. No transcript
             and no audio leaves the student&rsquo;s machine. Athena is a study
             aid, not a grader.
           </p>

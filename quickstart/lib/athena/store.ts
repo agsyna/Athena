@@ -1,19 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { AthenaSession } from './types';
 
-/**
- * In-memory session store.
- *
- * Sessions exist so the highlighted passage never has to travel in a URL — the
- * extension POSTs the text, gets a short id back, and the viva page fetches it.
- *
- * Deliberately not a database: a viva is a single-user, single-machine,
- * minutes-long interaction. This is a documented limitation in the README —
- * sessions do not survive a server restart and are not shared across replicas.
- *
- * Held on globalThis because Next.js dev hot-reloading re-evaluates modules,
- * which would otherwise drop every in-flight session on the first file save.
- */
+// In-memory session store. The extension POSTs a passage and gets back a short
+// id, so the text never has to travel in a URL.
+//
+// Not a database on purpose: a viva is one user on one machine for a few
+// minutes. Sessions don't survive a restart. Kept on globalThis because Next's
+// dev hot reload re-evaluates modules and would otherwise drop them all.
 const TTL_MS = 6 * 60 * 60 * 1000;
 
 type Store = Map<string, AthenaSession>;

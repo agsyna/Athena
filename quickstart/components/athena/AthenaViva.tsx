@@ -9,8 +9,8 @@ import type { VivaResult } from './VivaSession';
 
 const VivaSession = dynamic(() => import('./VivaSession'), { ssr: false });
 
-// Browser-only RTC provider. useRef (not useMemo) so StrictMode's simulated
-// unmount/remount cannot create a second RTC client.
+// Browser-only RTC provider. useRef rather than useMemo, or StrictMode's fake
+// unmount/remount creates a second RTC client.
 const AgoraProvider = dynamic(
   async () => {
     const { AgoraRTCProvider, default: AgoraRTC } = await import('agora-rtc-react');
@@ -47,7 +47,7 @@ export default function AthenaViva({
   autoStart = false,
 }: {
   sessionId: string | null;
-  /** Skip the pre-call card — the student already pressed Start in the panel. */
+  /** Skips the pre-call card, for when Start was already pressed in the panel. */
   autoStart?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>('loading');
@@ -55,15 +55,12 @@ export default function AthenaViva({
   const [session, setSession] = useState<SessionData | null>(null);
   const [agoraData, setAgoraData] = useState<AgoraData | null>(null);
   const [rtmClient, setRtmClient] = useState<RTMClient | null>(null);
-  /**
-   * Held here rather than inside VivaSession. Releasing the RTM client unmounts
-   * that component, which previously destroyed the summary the moment it was
-   * produced — the student saw it for a single frame and then a blank panel.
-   */
+  // Lives here, not in VivaSession: releasing the RTM client unmounts that
+  // component, which used to blow away the summary a frame after it appeared.
   const [result, setResult] = useState<VivaResult | null>(null);
 
-  // Warm the heavy browser-only modules while the student reads the pre-call
-  // card, so pressing Start does not stall on a dynamic import.
+  // Preload the heavy browser-only modules while the pre-call card is up, so
+  // Start doesn't stall on a dynamic import.
   useEffect(() => {
     import('agora-rtc-react').catch(() => {});
     import('agora-rtm').catch(() => {});
@@ -112,9 +109,8 @@ export default function AthenaViva({
       const tokenData = await tokenResponse.json();
       if (!tokenResponse.ok) throw new Error(tokenData.error ?? 'Token request failed');
 
-      // Agent start and RTM login both depend only on the token, and RTM must
-      // be logged in before VivaSession mounts so the toolkit can subscribe
-      // immediately. Agent start is non-fatal — the panel still renders.
+      // Both only need the token. RTM has to be logged in before VivaSession
+      // mounts so the toolkit can subscribe straight away.
       const [agent, rtm] = await Promise.all([
         fetch('/api/athena/start', {
           method: 'POST',
@@ -130,7 +126,7 @@ export default function AthenaViva({
 
         (async () => {
           const { default: AgoraRTM } = await import('agora-rtm');
-          // RTM identity must match the token subject, which is tokenData.uid.
+          // RTM identity has to match the token subject.
           const rtm: RTMClient = new AgoraRTM.RTM(
             process.env.NEXT_PUBLIC_AGORA_APP_ID!,
             tokenData.uid,
@@ -160,14 +156,9 @@ export default function AthenaViva({
     }
   }, [sessionId]);
 
-  /**
-   * Launched from the extension: the student already pressed "Start viva" in
-   * the panel, so asking them to press a second identical button is friction,
-   * not consent. Start as soon as the passage is in hand.
-   *
-   * `startedOnce` guards against React StrictMode's double effect invocation,
-   * which would otherwise start two agents in the same channel.
-   */
+  // Launched from the extension, where Start was already pressed once, so
+  // don't ask again. startedOnce guards StrictMode's double effect run, which
+  // would otherwise start two agents in the same channel.
   const startedOnce = useRef(false);
   useEffect(() => {
     if (!autoStart || phase !== 'ready' || startedOnce.current) return;
@@ -190,12 +181,9 @@ export default function AthenaViva({
     [agoraData],
   );
 
-  /**
-   * Closing the window is a legitimate way to end a viva, and the unload path
-   * is too short for a normal fetch. sendBeacon hands the request to the
-   * browser to deliver after the page is gone, which stops the agent instead of
-   * leaving it to idle out on billed minutes.
-   */
+  // Closing the window is a fine way to end a viva, but unload is too short for
+  // a normal fetch. sendBeacon gets delivered after the page is gone, so the
+  // agent stops instead of idling out on billed minutes.
   useEffect(() => {
     const agentId = agoraData?.agentId;
     if (!agentId) return;
@@ -213,8 +201,7 @@ export default function AthenaViva({
 
   const handleEnd = useCallback(
     async (finished: VivaResult) => {
-      // Show the summary before tearing anything down, so the transition is a
-      // swap rather than a gap.
+      // Swap in the summary before tearing anything down, so there's no gap.
       setResult(finished);
       setPhase('ended');
 
@@ -224,8 +211,7 @@ export default function AthenaViva({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_id: agoraData.agentId }),
         }).catch(() => {
-          // The agent also idles out on its own; a failed stop is not worth
-          // blocking the summary the student is waiting for.
+          // It idles out on its own anyway, don't block the summary on this.
         });
       }
       rtmClient?.logout().catch(() => {});

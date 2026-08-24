@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { createSession, getSession } from '@/lib/athena/store';
 import { preflight, withCors } from '@/lib/athena/cors';
 
-/** Below this, there is not enough material to build a viva out of. */
+// Below this there isn't enough material to build a viva out of.
 const MIN_PASSAGE_CHARS = 80;
 const MAX_PASSAGE_CHARS = 20000;
 
@@ -10,13 +10,8 @@ export async function OPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
-/**
- * Creates a viva session from highlighted text.
- *
- * Called by the extension's side panel the moment the student clicks "Start
- * viva". Returns an id the viva page uses to fetch the passage, so the passage
- * itself never has to survive a URL length limit.
- */
+// Called by the side panel on "Start viva". Returns an id used to fetch the
+// passage later, so the text itself never has to fit in a URL.
 export async function POST(request: NextRequest) {
   let body: {
     passage?: string;
@@ -36,7 +31,7 @@ export async function POST(request: NextRequest) {
     return withCors(
       request,
       {
-        error: `Highlight a bit more text — Athena needs at least ${MIN_PASSAGE_CHARS} characters to build a viva from.`,
+        error: `Highlight a bit more text. Athena needs at least ${MIN_PASSAGE_CHARS} characters to build a viva from.`,
       },
       { status: 400 },
     );
@@ -50,8 +45,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Revision sessions name the topics that sent the student back here. Capped
-  // at six: past that Athena is being handed a syllabus, not a revision list.
+  // Topics that sent the student back here, on a revision session. Capped at
+  // six, past which it's a syllabus rather than a revision list.
   const focusTopics = Array.isArray(body.focusTopics)
     ? body.focusTopics
         .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)

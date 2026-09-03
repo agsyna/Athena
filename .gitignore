@@ -8,3 +8,7 @@ node_modules/
 .vercel
 .agora/
 next-env.d.ts
+
+# Agora's own agent skill, vendored locally for development. Not ours to ship;
+# get it from https://github.com/AgoraIO-Community/ai-devkit
+.claude/

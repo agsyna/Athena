@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    name: verify (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quickstart
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # 10, not 11: pnpm 11 turns the sample's harmless
+          # ERR_PNPM_IGNORED_BUILDS warning into a hard install failure.
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+          cache-dependency-path: quickstart/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Stub credentials so doctor can run
+        run: |
+          printf 'NEXT_PUBLIC_AGORA_APP_ID=0123456789abcdef0123456789abcdef\nNEXT_AGORA_APP_CERTIFICATE=fedcba9876543210fedcba9876543210\n' > .env.local
+
+      - name: Verify (doctor + lint + typecheck + api contracts + build)
+        run: pnpm run verify
+
+      - name: Control channel parser
+        run: node --import tsx scripts/athena-parse.test.ts
+
+  invariants:
+    name: control channel invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The one-line regression no test can catch. Removing skipPatterns makes
+      # the agent read its own JSON telemetry out loud to the student, and every
+      # automated check still passes, because it only shows up in live speech.
+      - name: TTS still strips the control channel
+        run: |
+          grep -q 'skipPatterns: \[5\]' quickstart/app/api/athena/start/route.ts \
+            || { echo "::error file=quickstart/app/api/athena/start/route.ts::skipPatterns: [5] is missing. Athena will speak her control payload aloud."; exit 1; }
+
+      # The parser is implemented twice because the extension has no build step
+      # and cannot import TypeScript. They must not drift.
+      - name: Both parsers understand the same payload fields
+        run: |
+          for field in topics focus mark done outside; do
+            grep -q "$field" quickstart/lib/athena/parse.ts \
+              || { echo "::error::backend parser lost the '$field' field"; exit 1; }
+            grep -q "$field" extension/parse.js \
+              || { echo "::error file=extension/parse.js::extension parser is missing the '$field' field. Mirror quickstart/lib/athena/parse.ts."; exit 1; }
+          done
+
+      - name: Extension manifest is valid JSON
+        run: python3 -m json.tool extension/manifest.json > /dev/null

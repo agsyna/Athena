@@ -1,7 +1,7 @@
 # Athena
 
-**Highlight anything you don't understand. Get examined on it, out loud, by
-someone who has already read it.**
+**Highlight what you don't understand and just ask. She has already read the
+page you're on.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](https://nodejs.org/)
@@ -24,20 +24,28 @@ someone who has already read it.**
 
 ## What you build
 
-A Chrome extension that turns any passage on any web page into a live spoken
-examination.
+A Chrome extension that reads the page with you.
 
-You highlight three paragraphs about database normalisation. Athena reads them,
-tells you in two sentences what they actually cover, and asks if you want to be
-tested or want something explained first. Then she starts asking. One question
-at a time, adapting: nail an answer and the next one gets harder, fumble one and
+You are partway through something online and you hit a line you do not get. The
+usual move is to open another tab, search it, and somehow lose ten minutes
+before finding your way back. Athena cuts out the detour. Highlight the bit that
+lost you and ask her about it out loud. She already has the passage, so the
+answer is grounded in your material rather than in whatever a search engine felt
+like surfacing.
+
+And she talks back. Ask a follow-up, say what still does not make sense, ask her
+to put it another way. Want a tutor? She will walk you through it. Want to find
+out whether you actually understood it? Say so, and she switches into examiner
+mode.
+
+That mode is where the screen starts earning its keep. She asks one question at
+a time and adapts: nail an answer and the next one gets harder, fumble one and
 she narrows in on exactly the bit you missed, say "I have no idea" and she stops
-examining and teaches it, then checks that it landed.
-
-While this happens, a row of chips on screen fills in with every topic she has
-decided to cover, colour-coded by how you are doing. Ask her something the
-passage does not cover and she says so out loud instead of bluffing, and the
-thing you asked about appears on screen labelled as off-passage.
+examining and teaches it, then checks that it landed. Meanwhile a row of chips
+fills in with every topic she has decided to cover, colour-coded by how you are
+doing. Ask about something the passage does not cover and she says so out loud
+instead of bluffing, and the thing you asked about appears on screen labelled as
+off-passage.
 
 At the end you get a summary of what was solid, what you recovered, and what to
 revise, plus a bubble map of the whole session. Every session is saved locally

@@ -1,4 +1,18 @@
-# Athena
+<h1 align="center">Athena</h1>
+
+<p align="center">
+  <b>Highlight what you don't understand and just ask.<br/>
+  She has already read the page you're on.</b>
+</p>
+
+<p align="center">
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <a href="https://nodejs.org/"><img alt="Node 22+" src="https://img.shields.io/badge/node-%3E%3D22-339933"></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img alt="Chrome MV3" src="https://img.shields.io/badge/chrome-MV3-4285F4"></a>
+  <a href="https://docs.agora.io/en/conversational-ai/overview/product-overview"><img alt="Agora Conversational AI" src="https://img.shields.io/badge/Agora-Conversational%20AI-099DFD"></a>
+</p>
+
+---
 
 Whenever you're reading something online and come across a word, line, or
 concept you don't quite get, the usual move is to open another tab, search it,
@@ -14,7 +28,11 @@ through it. Want to be tested? She'll switch into interviewer mode, ask tougher
 questions when you're getting it right, and come back to the parts you struggled
 with.
 
-A Chrome extension, built on the [Agora Conversational AI Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
+A Chrome extension, built on the [Agora Conversational AI
+Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
+
+> **Want to build this?** [`docs/ai/RECIPE.md`](docs/ai/RECIPE.md) is the full
+> recipe, including the one trick here that is genuinely worth stealing.
 
 ## What else it does
 
@@ -29,6 +47,9 @@ A Chrome extension, built on the [Agora Conversational AI Engine](https://docs.a
 - **Second screen.** `/watch/<id>` mirrors the map for a tutor without giving
   them the transcript. They can nudge her back to a topic.
 - **Type or talk.** Typed answers take the same path as spoken ones.
+- **She knows her own edges.** Ask about something the passage doesn't cover and
+  she says so rather than bluffing, and names it on screen so you can see she
+  declined instead of inventing.
 - Talk over her and she stops. Mute, redirect her to your weak topics, or end
   the session whenever.
 
@@ -52,7 +73,7 @@ App parses:  the payload, and flips the Normalization chip green
 
 One model, one call, one round trip. Contract in
 [`lib/athena/prompt.ts`](quickstart/lib/athena/prompt.ts), reader in
-[`lib/athena/parse.ts`](quickstart/lib/athena/parse.ts), 21 tests in
+[`lib/athena/parse.ts`](quickstart/lib/athena/parse.ts), 21 assertions in
 [`scripts/athena-parse.test.ts`](quickstart/scripts/athena-parse.test.ts).
 
 The extension does capture and UI, the Next.js app holds the App Certificate and
@@ -66,14 +87,18 @@ Chrome. pnpm 10 specifically, since 11 turns the sample's harmless
 `ERR_PNPM_IGNORED_BUILDS` warning into a hard failure.
 
 ```bash
+agora login
+agora project create athena --feature rtc --feature rtm --feature convoai
+agora project use athena
+agora project env write quickstart/.env.local
+
 cd quickstart
 pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-`agora init` has already written `.env.local` with the App ID and Certificate
-and enabled rtc, rtm and convoai. No other keys are needed: speech recognition,
-the model and the voice are all resold through Agora.
+No other keys are needed: speech recognition, the model and the voice are all
+resold through Agora.
 
 Then load the extension at `chrome://extensions`: Developer mode, Load unpacked,
 pick [`extension/`](extension/). Click the icon and paste a few paragraphs. The
@@ -81,6 +106,16 @@ first run opens a tab asking for the microphone, since Chrome grants that per
 origin.
 
 Tests: `cd quickstart && node --import tsx scripts/athena-parse.test.ts`
+
+## Repository
+
+| Path | What it is |
+| --- | --- |
+| [`extension/`](extension/) | The Chrome extension: capture, side panel, viva UI, revision list |
+| [`quickstart/`](quickstart/) | The Next.js backend, forked from the official Agora quickstart |
+| [`docs/ai/RECIPE.md`](docs/ai/RECIPE.md) | The recipe: what this is and how to build it |
+| [`docs/architecture.md`](docs/architecture.md) | Diagrams and the full call sequence |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to work on it |
 
 ## Limitations
 
@@ -96,7 +131,12 @@ grade you or judge material outside the passage.
   history does persist, in `chrome.storage.local` on your machine.
 - One speaker, English only, and highlight capture doesn't work on `chrome://`
   pages or the PDF viewer. Pasting always does.
-- Not deployed. Runs on `localhost:3000`, and CORS is open by origin scheme
-  because unpacked extension IDs aren't known ahead of time.
+- Runs on `localhost:3000` by default. Deploying is two settings and a pinned
+  extension ID: see [Deploy](quickstart/README.md#deploy).
 - One upstream fix: `tailwind.config.ts` used `require()` in a TypeScript
   config, which throws under Node 24+. Changed to an import.
+
+## Licence
+
+MIT, see [`LICENSE`](LICENSE). `quickstart/` derives from the Agora
+Conversational AI Next.js quickstart, also MIT.

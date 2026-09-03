@@ -5,8 +5,7 @@
 // The RTC side of things lives in viva.js.
 
 import { createViva } from './viva.js';
-
-const SERVER = 'http://localhost:3000';
+import { SERVER } from './config.js';
 const MIN_CHARS = 80;
 
 const composeEl = document.getElementById('compose');

@@ -1,22 +1,43 @@
-# Agora Conversational AI Next.js Quickstart — Repo Card
+# Athena Backend: Repo Card
 
-> Official Next.js quickstart for building browser-based voice AI agents with Agora Conversational AI Engine.
+> The server half of Athena, a Chrome extension that examines you out loud on
+> anything you highlight. Forked from the official Agora Conversational AI
+> Next.js quickstart.
 
 ## Identity
 
 | Field | Value |
 | --- | --- |
-| Repo | `AgoraIO-Conversational-AI/agent-quickstart-nextjs` |
-| Type | `frontend-app` |
+| Repo | `agsyna/Athena` (this app lives in `quickstart/`) |
+| Type | `frontend-app` with privileged API routes |
 | Language | TypeScript, Next.js 16 App Router, React 19 |
 | Deploy Target | Local Node.js dev server, Vercel |
-| Owner | Agora Conversational AI / DevEx |
-| Recipe Role | base |
-| Recipe Version | 0.1.0 |
+| Owner | agsyna |
+| Recipe Role | derived |
+| Derived From | `AgoraIO-Conversational-AI/agent-quickstart-nextjs` |
+| Recipe Version | 1.0.0 |
 | Recipe Status | stable |
-| Last Reviewed | 2026-08-22 |
+| Last Reviewed | 2026-09-03 |
 
-## L1 — Summaries
+## The One Thing To Know
+
+Athena drives a live understanding map from a voice agent **without a second
+model call**. The agent appends a JSON object to every spoken turn, and
+`MiniMaxTTS({ skipPatterns: [5] })` makes the engine strip curly braces before
+speech synthesis while the real-time transcript still carries the full text.
+
+Speech and UI state can never disagree, because they are the same tokens. That
+line in [app/api/athena/start/route.ts](../../app/api/athena/start/route.ts) is
+load-bearing: remove it and the agent reads its own telemetry aloud.
+
+## Two Halves
+
+The client is a Chrome extension in `extension/`, one directory up from this
+app. It has no build step and vendors the Agora web SDKs, so it cannot import
+anything from here. This app exists because the App Certificate cannot live in
+an extension that anyone who installs it can read.
+
+## L1 summaries
 
 The Audience column helps agents prioritise: **Use** = consuming the repo behavior, **Maintain** = changing internals.
 
@@ -30,3 +51,9 @@ The Audience column helps agents prioritise: **Use** = consuming the repo behavi
 | [06_interfaces](L1/06_interfaces.md) | API contracts, event payloads, env contracts | Use & Maintain |
 | [07_gotchas](L1/07_gotchas.md) | High-impact pitfalls and known failure modes | Maintain |
 | [08_security](L1/08_security.md) | Secret handling, trust boundaries, auth/token model | Maintain |
+
+## Recipe
+
+- [RECIPE.md](RECIPE.md) is this backend's machine-readable profile.
+- [../../../docs/ai/RECIPE.md](../../../docs/ai/RECIPE.md) is the reader-facing
+  recipe covering both halves, and the one the Agora catalog renders.

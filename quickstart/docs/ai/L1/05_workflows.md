@@ -32,6 +32,35 @@ Validation path:
 3. `pnpm run verify:api`
 4. `pnpm run build`
 
+## Change Athena's Behaviour
+
+Target file: `lib/athena/prompt.ts`, not `app/api/invite-agent/route.ts`. The
+Athena agent is started by `app/api/athena/start/route.ts` and takes its
+instructions from `buildAthenaPrompt`.
+
+Typical edits:
+
+- Examiner persona, phasing and adaptive difficulty rules (`buildAthenaPrompt`).
+- Greeting spoken on join (`ATHENA_GREETING`).
+- The control payload contract, at the bottom of the prompt.
+- Voice, model, speech recognition, VAD (`app/api/athena/start/route.ts`).
+
+Validation path:
+
+1. `pnpm run lint`, `pnpm run typecheck`, `pnpm run verify:api`
+2. `node --import tsx scripts/athena-parse.test.ts`
+3. **Run one real viva.** Confirm you never hear a brace, a JSON key, or the
+   word "focus". No automated check catches an audible control channel, because
+   it depends on the live TTS pipeline honouring `skipPatterns`.
+
+## Change The Control Schema
+
+1. Update the contract section of `lib/athena/prompt.ts`.
+2. Update `AthenaControl` and `applyControl` in `lib/athena/parse.ts`.
+3. Mirror both into `extension/parse.js`.
+4. Add cases to `scripts/athena-parse.test.ts`, including a malformed payload.
+5. Run one real viva and watch the chips.
+
 ## Change Token or Session Bootstrap
 
 Token behavior:

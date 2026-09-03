@@ -8,6 +8,27 @@
 - Next.js server routes hold credentials and mint scoped, expiring tokens.
 - Agora cloud executes managed agent pipeline using server-issued credentials.
 
+### Extension Trust Boundary
+
+The Chrome extension is the least trusted component in the system. Anyone who
+installs it can read every line of it, which is the entire reason this backend
+exists: `NEXT_AGORA_APP_CERTIFICATE` cannot live in the client.
+
+Nothing in `extension/` should ever hold a credential. It receives short-lived
+signed tokens from `/api/athena/token` and nothing else.
+
+### CORS Model
+
+`lib/athena/cors.ts` is permissive in development, accepting any
+`chrome-extension://` or loopback origin, because an unpacked extension gets a
+fresh ID per install path and configuring an allowlist for it would be busywork.
+
+That behaviour must not ship. Set `ATHENA_ALLOWED_ORIGINS` to an explicit
+comma-separated list before deploying, and pin the extension's ID with a `key`
+in `extension/manifest.json` first, so the allowed value is stable. A production
+build with no allowlist refuses every cross-origin caller rather than staying
+open by default.
+
 ## Secret Handling Rules
 
 - Keep `NEXT_AGORA_APP_CERTIFICATE` server-side only.
@@ -38,6 +59,17 @@
 - Run `pnpm run verify` before release changes.
 - Avoid logging secrets; current logs are operational and should remain non-secret.
 - Use least-privilege project bindings when managing Agora environments.
+
+## Student Data
+
+- Passages live in an in-memory `Map` with a six hour TTL and are never written
+  to disk by the server.
+- Transcripts are not persisted server-side. The summary route renders markdown
+  from a payload the client sends and does not retain it.
+- Revision history lives in `chrome.storage.local`, on the student's own
+  machine, and never reaches the server.
+- The watch page mirrors the understanding map only, never the transcript, so
+  sharing a watch link does not share what the student said.
 
 ## Known Limits
 
@@ -79,7 +111,10 @@
 - `app/api/invite-agent/route.ts`
 - `app/api/stop-conversation/route.ts`
 - `env.local.example`
-- `README.md` environment section
+- `README.md` environment section- `lib/athena/cors.ts`
+- `app/api/athena/token/route.ts`
+- `app/api/athena/start/route.ts`
+- `extension/manifest.json` (host permissions and pinned key)
 
 ## Audit Trigger Events
 

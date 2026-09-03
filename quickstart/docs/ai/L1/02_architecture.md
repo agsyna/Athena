@@ -57,6 +57,49 @@ Agora Cloud
 - `agora-agent-client-toolkit` and `agora-agent-uikit` for conversation logic/UI.
 - `agora-agents` for managed agent lifecycle.
 
+## The Athena Layer
+
+Everything above describes the inherited base quickstart, which is still present
+and still works. Athena adds a second client and one non-obvious mechanism.
+
+### Second client
+
+`extension/` is a Chrome MV3 extension with no build step. It vendors the Agora
+web SDKs in `extension/vendor/` and talks to `app/api/athena/*` over CORS. It
+does not import from `components/` and never will, so the browser UI here and
+the panel UI there are separate implementations of the same session.
+
+The extension exists because capture needs `activeTab`, granted only on a user
+gesture. The viva runs on the extension's own origin rather than in an iframe,
+because a cross-origin frame inside a `chrome-extension://` page is its own
+microphone permission context and will not inherit a grant given to
+`localhost:3000`.
+
+### Control channel
+
+```text
+LLM turn text
+  -> Agora engine strips { ... } before TTS   (skipPatterns: [5])
+  -> student hears prose only
+  -> RTM transcript delivers the full text, braces intact
+  -> parse.ts extracts the JSON and applies it to the understanding map
+```
+
+`lib/athena/prompt.ts` holds the contract the model is held to. `lib/athena/parse.ts`
+reads payloads back out and is duplicated as `extension/parse.js`, because the
+extension cannot import TypeScript. Change one, change both.
+
+The parser walks backwards from the last `}` and lets `JSON.parse` decide which
+`{` opened the payload. Quote-state tracking does not survive real prose: one
+apostrophe flips the parity and hides the object entirely.
+
+### Session store
+
+`lib/athena/store.ts` is an in-memory `Map` on `globalThis` with a six hour TTL.
+A passage runs to thousands of characters, past what is safe in a query string,
+so the extension POSTs it and carries an eight-character id instead. Sessions do
+not survive a restart, and that is deliberate.
+
 ## Deployment Modes
 
 - Local development via `pnpm run dev`.

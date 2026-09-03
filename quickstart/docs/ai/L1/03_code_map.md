@@ -15,6 +15,20 @@ public/              Static assets and branding
 types/               Shared TypeScript route/component contracts
 ```
 
+Athena's own code is namespaced, so the boundary with inherited quickstart code
+stays obvious:
+
+```text
+app/api/athena/      session, token, start, stop, live, summary
+lib/athena/          prompt, parse, store, summary, cors, types
+components/athena/   understanding map, summary panel, watch view
+app/viva/            standalone viva page
+app/watch/[id]/      read-only second screen
+scripts/athena-parse.test.ts
+```
+
+Everything outside those paths is inherited and kept close to upstream.
+
 ## API Route Ownership (`app/api`)
 
 - `generate-agora-token/route.ts`: builds RTC+RTM token via `buildTokenWithRtm`.
@@ -48,6 +62,14 @@ types/               Shared TypeScript route/component contracts
 - Change token policy/channel naming -> `app/api/generate-agora-token/route.ts`.
 - Change transcript mapping behavior -> `lib/conversation.ts` + `components/ConversationComponent.tsx`.
 - Change session bootstrap UX -> `components/LandingPage.tsx`.
+Athena lookups:
+
+- Change what kind of examiner she is -> `lib/athena/prompt.ts`.
+- Change the control payload schema -> `lib/athena/prompt.ts` **and** `lib/athena/parse.ts` **and** `extension/parse.js`.
+- Change voice, model, speech recognition or VAD -> `app/api/athena/start/route.ts`.
+- Change session lifetime or storage -> `lib/athena/store.ts`.
+- Change who may call the API -> `lib/athena/cors.ts`.
+- Change the panel UI -> `extension/sidepanel.js` and `extension/sidepanel.css`.
 
 ## Additional Component Roles
 

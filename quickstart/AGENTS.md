@@ -1,23 +1,42 @@
 # Agent Development Guide
 
-This guide is for coding agents making changes in `agent-quickstart-nextjs`.
+This guide is for coding agents and contributors making changes to the Athena
+backend.
+
+**Read this first.** Athena is two halves. This Next.js app is the server; the
+client is a Chrome extension in `../extension/` with no build step, which vendors
+the Agora web SDKs and cannot import anything from here. A change to the control
+channel almost always needs edits on both sides. See
+[../docs/ai/RECIPE.md](../docs/ai/RECIPE.md) for what Athena is and how the
+control channel works.
+
+This app is a fork of the official Agora Conversational AI Next.js quickstart.
+Everything outside `lib/athena/`, `app/api/athena/` and `components/athena/` is
+inherited and kept close to upstream on purpose, so improvements there stay easy
+to pull in. Prefer adding to the `athena/` namespace over editing inherited code.
 
 ## How to Load
 
 This repository uses progressive disclosure documentation. Docs live under `docs/ai/` in three levels.
 
 1. Read [docs/ai/L0_repo_card.md](docs/ai/L0_repo_card.md) to identify the repo.
-2. Load ALL 8 files in [docs/ai/L1/](docs/ai/L1/). They are small — load all upfront.
+2. Load ALL 8 files in [docs/ai/L1/](docs/ai/L1/). They are small, so load all of them upfront.
 3. Follow L2 deep-dive links only when L1 isn't detailed enough. The index is at [docs/ai/L1/L2/_index.md](docs/ai/L1/L2/_index.md).
 
-This repo declares `Recipe Role: base` in L0, so also read [docs/ai/RECIPE.md](docs/ai/RECIPE.md) when evaluating extension points, invariants, or stable contracts.
+This repo declares `Recipe Role: derived` in L0. Read
+[docs/ai/RECIPE.md](docs/ai/RECIPE.md) for this backend's extension points,
+invariants and stable contracts, and
+[../docs/ai/RECIPE.md](../docs/ai/RECIPE.md) for the reader-facing recipe that
+covers both halves.
 
 The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canonical contributor handbook for hands-on work; the `docs/ai/` tree is the structured summary used by AI agents.
 
 ## Start Here
 
 - Read [README.md](./README.md) for setup, commands, verification, and deployment.
-- Use [docs/ai/RECIPE.md](docs/ai/RECIPE.md) for the base quickstart recipe contract.
+- Use [docs/ai/RECIPE.md](docs/ai/RECIPE.md) for this backend's recipe contract.
+- Use [lib/athena/prompt.ts](lib/athena/prompt.ts) for the examiner behaviour and
+  the control payload contract. It is the most consequential file in the repo.
 - Use [docs/ai/L1/L2/from_scratch_bootstrap.md](docs/ai/L1/L2/from_scratch_bootstrap.md) for the baseline implementation map.
 - Use [docs/ai/L1/L2/transcript_pipeline.md](docs/ai/L1/L2/transcript_pipeline.md) for transcript and RTM behavior.
 - For layout and responsibilities inside `components/`, `app/api/`, and `lib/`, use [docs/ai/L1/03_code_map.md](docs/ai/L1/03_code_map.md) and [docs/ai/L1/02_architecture.md](docs/ai/L1/02_architecture.md).
@@ -32,6 +51,10 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - Server SDK: `agora-agents` for managed agent session startup
 - API routes: token generation, agent invite, chat, and stop routes live in `app/api`
 - Default agent config: Agora-managed STT, LLM, and TTS; `.env.local` contains only Agora project credentials
+- Athena layer: `app/api/athena/*` routes, `lib/athena/*` logic, `components/athena/*` UI
+- Control channel: `MiniMaxTTS({ skipPatterns: [5] })` strips curly braces before
+  speech synthesis while the transcript keeps them, so one model call drives the
+  live understanding map
 
 ## Supported Modes
 
@@ -54,7 +77,23 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - Shared constants and transcript normalization live in `lib`.
 - If a workflow, request contract, or ownership boundary changes, update `README.md`, `AGENTS.md`, and the relevant `docs/ai/` files in the same change.
 
-## Key Files
+## Athena Key Files
+
+- `lib/athena/prompt.ts`: the examiner system prompt and the control payload
+  contract. Edit here for persona, phasing, adaptive difficulty, or schema.
+- `lib/athena/parse.ts`: extracts the payload from a spoken turn and applies it.
+  **Mirrored by `../extension/parse.js`; change both.**
+- `lib/athena/store.ts`: in-memory session store, six hour TTL.
+- `lib/athena/cors.ts`: permissive in dev, `ATHENA_ALLOWED_ORIGINS` allowlist in production.
+- `lib/athena/summary.ts`: end-of-session markdown.
+- `app/api/athena/start/route.ts`: starts the viva agent. **`skipPatterns: [5]`
+  lives here and is load-bearing.**
+- `app/api/athena/live/route.ts`: mirrors the map for the watch page and returns
+  pending nudges in the same response.
+- `scripts/athena-parse.test.ts`: 21 assertions over the parser.
+- `../extension/config.js`: where the backend origin is set.
+
+## Inherited Key Files
 
 - `app/api/generate-agora-token/route.ts`: issues RTC + RTM tokens for the browser user.
 - `app/api/invite-agent/route.ts`: starts the managed agent session; edit here for system prompt, VAD, model, or voice changes.
@@ -71,6 +110,26 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - `scripts/verify-api-contracts.ts`: route contract verification.
 
 ## Patterns
+
+### The Control Channel
+
+The agent appends one JSON object to every spoken turn. `skipPatterns: [5]` makes
+the Agora engine strip curly braces before speech synthesis, while the real-time
+transcript still carries the full text. So the same tokens are both the speech
+and the UI state, and they cannot disagree.
+
+Rules that hold this together:
+
+- **One brace pair per turn.** The engine skips the first outermost pair only, so
+  a second object is spoken aloud.
+- **Low LLM temperature.** Currently `0.4`. The payload has to come out in the
+  same shape every turn.
+- **The parser stays tolerant.** A malformed payload leaves a chip stale. It must
+  never throw mid-viva.
+- **The parser is duplicated.** `lib/athena/parse.ts` and `../extension/parse.js`
+  read the same payload. The extension has no build step and cannot import
+  TypeScript. Change one, change both, and add the case to
+  `scripts/athena-parse.test.ts`.
 
 ### StrictMode Guard (`isReady`)
 
@@ -125,7 +184,12 @@ useEffect(() => {
 
 ## Working Rules
 
-- Prefer the smallest change that keeps the quickstart copyable and production-style.
+- Prefer the smallest change that keeps the recipe copyable and production-style.
+- Never remove `skipPatterns: [5]` from the TTS builder.
+- Never let a credential reach `../extension/`. It receives signed short-lived
+  tokens and nothing else.
+- Keep new code inside the `athena/` namespaces rather than editing inherited
+  quickstart files, so upstream improvements stay mergeable.
 - Keep RTC client creation StrictMode-safe with `useRef`, not `useMemo`.
 - Keep token generation on `RtcTokenBuilder.buildTokenWithRtm`.
 - Keep transcript UID remapping aligned with the toolkit sentinel behavior.
@@ -150,6 +214,7 @@ pnpm run lint
 pnpm run typecheck
 pnpm run verify:api
 pnpm run build
+node --import tsx scripts/athena-parse.test.ts    # control channel parser
 ```
 
 ## Verification Safety
@@ -174,11 +239,18 @@ pnpm run build
 - Do not use the deprecated `turnDetection.type: 'agora_vad'` flat API; use `turnDetection.config.start_of_speech` and `turnDetection.config.end_of_speech`.
 - Do not replace `RtcTokenBuilder.buildTokenWithRtm` with an RTC-only token builder.
 - Do not hide SDK requirements only in `CLAUDE.md`; all agent-facing guidance belongs in `AGENTS.md`.
+- Do not remove `skipPatterns: [5]`, and do not emit two brace pairs in one turn.
+- Do not edit `lib/athena/parse.ts` without mirroring `../extension/parse.js`.
+- Do not ship a deployment without `ATHENA_ALLOWED_ORIGINS` set.
 
 ## Done Criteria
 
 Before finishing a change:
 
+0. If you touched the prompt, the parser or the TTS config: run one real viva and
+   confirm you never hear a curly brace, a JSON key, or the word "focus". No
+   automated check catches an audible control channel, because it depends on the
+   live TTS pipeline honouring `skipPatterns`.
 1. Run the narrowest relevant verification command.
 2. For shipped app/runtime changes, ensure `pnpm run verify` passes.
 3. If you changed files in `components/` or `app/api/`, verify that `README.md`, this file, and the relevant `docs/ai/` files still match the implementation.
@@ -187,27 +259,27 @@ Before finishing a change:
 
 ## Git Conventions
 
-### Commit messages — conventional commits
+### Commit messages: conventional commits
 
 - **Format:** `type: description` or `type(scope): description`
 - **Types:** `feat:` (new feature), `fix:` (bug fix), `chore:` (maintenance, version bumps), `test:` (test additions/changes), `docs:` (documentation)
-- **Scoped variant:** `feat(scope):`, `fix(scope):` — e.g. `feat(api): add stop-conversation status flag`
-- **Lowercase after prefix** — `feat: add feature`, not `feat: Add feature`
-- **Present tense** — "add feature", not "added feature"
-- **PR number appended** — `feat: add feature (#123)`
+- **Scoped variant:** `feat(scope):`, `fix(scope):`, e.g. `feat(api): add stop-conversation status flag`
+- **Lowercase after prefix.** `feat: add feature`, not `feat: Add feature`
+- **Present tense.** "add feature", not "added feature"
+- **PR number appended.** `feat: add feature (#123)`
 
 ### Branch names
 
-- **Format:** `type/short-description` — lowercase, hyphen-separated
+- **Format:** `type/short-description`, lowercase, hyphen-separated
 - **Types match commit types:** `feat/`, `fix/`, `chore/`, `test/`, `docs/`
 - **Examples:** `feat/agent-metrics`, `fix/transcript-uid`, `docs/progressive-disclosure`
 
 ### General rules
 
-- **No AI tool names** — never mention claude, cursor, copilot, cody, aider, gemini, codex, chatgpt, or gpt-3/4 in commit messages or PR descriptions.
-- **No Co-Authored-By trailers** — omit AI attribution lines.
-- **No `--no-verify`** — let git hooks run normally.
-- **No git config changes** — do not modify `user.name` or `user.email`.
+- **No AI tool names.** Never mention claude, cursor, copilot, cody, aider, gemini, codex, chatgpt, or gpt-3/4 in commit messages or PR descriptions.
+- **No Co-Authored-By trailers.** Omit AI attribution lines.
+- **No `--no-verify`.** Let git hooks run normally.
+- **No git config changes.** Do not modify `user.name` or `user.email`.
 
 ## Doc Commands
 

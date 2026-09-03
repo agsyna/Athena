@@ -49,6 +49,67 @@ Responses:
 
 Optional SSE proxy path (not default runtime path). Requires `NEXT_LLM_API_KEY` and `NEXT_LLM_URL` when used.
 
+## Athena Route Contracts
+
+All Athena routes answer `OPTIONS` for CORS preflight and are subject to
+`lib/athena/cors.ts`.
+
+### `POST /api/athena/session`
+
+Body: `{ passage, sourceTitle?, sourceUrl?, focusTopics? }`. The passage must be
+between 80 and 20000 characters. Returns a short session id, so a long passage
+never has to travel in a URL. `focusTopics` marks the session as revision, which
+shortens the agent's orientation turn and fixes her topic list.
+
+### `GET /api/athena/session?id=`
+
+Returns the stored session, or `404` once it has expired.
+
+### `GET /api/athena/token`
+
+Returns `{ token, uid, channel }` with RTM capability, via
+`RtcTokenBuilder.buildTokenWithRtm`.
+
+### `POST /api/athena/start`
+
+Body: `{ requester_id, channel_name, session_id }`. Compiles the stored passage
+into an examiner prompt and starts the agent with `skipPatterns: [5]` on TTS.
+Returns `{ agent_id, create_ts, state }`. Returns `404` with a student-readable
+message when the session has expired.
+
+### `POST /api/athena/stop`
+
+Body: `{ agent_id }`. Idempotent for already-stopping sessions.
+
+### `POST /api/athena/live`
+
+Two callers. A running viva POSTs its understanding map on a heartbeat and gets
+any pending watcher nudge back in the same response, so there is one loop rather
+than two. The watch page reads the mirrored state. Deliberately plain HTTP: a
+watcher is not a participant, and putting them in the channel would mean handing
+RTC credentials to anyone holding the link.
+
+### `POST /api/athena/summary`
+
+Body: `{ sessionId, topics, transcript, durationMs }`. Returns rendered markdown.
+
+## Control Payload Contract
+
+Emitted by the model inside curly braces, one object per turn, appended last:
+
+```json
+{ "topics": ["First Topic", "Second Topic"] }
+{ "mark": { "topic": "First Topic", "result": "correct" }, "focus": "Second Topic" }
+{ "outside": "Sharding", "focus": "Second Topic" }
+{ "mark": { "topic": "Second Topic", "result": "correct" }, "done": true }
+```
+
+`result` is exactly one of `correct`, `partial`, `wrong`. `topics` appears twice
+and only twice: the orientation turn, and the first examination question.
+`outside` names something the passage does not cover, and is the one field whose
+value is not a topic name. Full contract in `lib/athena/prompt.ts`, reader in
+`lib/athena/parse.ts`.
+
 ## Event/Data Interfaces
 
 - RTM transcript/state/metrics/errors consumed through `AgoraVoiceAI` event emitter.
@@ -61,6 +122,7 @@ Required:
 
 - `NEXT_PUBLIC_AGORA_APP_ID`
 - `NEXT_AGORA_APP_CERTIFICATE`
+- `ATHENA_ALLOWED_ORIGINS` (required on deploy, optional locally)
 
 This is the complete base `.env.local` contract. The optional BYOK route and provider snippets use additional variables only when a developer explicitly enables them.
 

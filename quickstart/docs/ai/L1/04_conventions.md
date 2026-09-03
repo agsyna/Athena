@@ -21,6 +21,20 @@
 - Normalize punctuation spacing for compacted provider output.
 - Normalize timestamps to milliseconds before issue rendering.
 
+## Control Channel Conventions
+
+- The parser exists twice: `lib/athena/parse.ts` and `extension/parse.js`. The
+  extension has no build step and cannot import TypeScript. **Change one, change
+  both**, and add the case to `scripts/athena-parse.test.ts`.
+- The payload contract lives in the system prompt. Changing the reader without
+  changing the prompt, or the reverse, silently breaks the map.
+- Exactly one brace pair per turn. The engine skips the first outermost pair
+  only, so a second object gets spoken aloud.
+- Keep the parser tolerant. A malformed payload must leave a chip stale, never
+  throw mid-viva.
+- Keep LLM temperature low. The payload has to come out in the same shape every
+  turn, which is a stricter requirement than sounding natural.
+
 ## Token and RTM Contract
 
 - Token route must use `RtcTokenBuilder.buildTokenWithRtm`.

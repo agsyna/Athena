@@ -9,6 +9,22 @@
 - Manual `client.leave()` conflicts with `useJoin` cleanup contract.
 - Manual `localMicrophoneTrack.close()` conflicts with hook-owned lifecycle.
 
+## Athena Control Channel Pitfalls
+
+- **Removing `skipPatterns: [5]` from the TTS builder makes the agent read its
+  own telemetry aloud.** This is the single most damaging one-line regression in
+  the repo, and nothing automated catches it.
+- Emitting two brace pairs in one turn gets the second one spoken. The engine
+  skips the first outermost pair only.
+- Changing `lib/athena/parse.ts` without mirroring `extension/parse.js` leaves
+  the panel and the standalone page disagreeing about the same transcript.
+- Raising LLM temperature makes the payload shape drift, and chips start lagging
+  turns for no visible reason.
+- Swapping TTS vendor without checking skip-pattern support silently makes the
+  control channel audible.
+- A passage under 80 characters is rejected by the session route, not by the UI,
+  so a thin paste surfaces as a server error rather than a hint.
+
 ## Transcript Pitfalls
 
 - Not remapping toolkit `uid="0"` causes user turns to render as agent turns.
@@ -56,6 +72,10 @@
 | Agent starts but no transcript | `components/ConversationComponent.tsx`, `lib/conversation.ts` |
 | Conversation hangs on end | `components/LandingPage.tsx`, `app/api/stop-conversation/route.ts` |
 | Metrics panel empty | `components/ConversationComponent.tsx`, `components/QuickstartPipelineMetrics.tsx` |
+| Athena speaks JSON | `app/api/athena/start/route.ts` (TTS builder) |
+| Chips never populate | `lib/athena/prompt.ts`, `extension/parse.js` |
+| Panel loads but every request fails | `lib/athena/cors.ts`, `extension/manifest.json` |
+| Viva starts then dies immediately | `lib/athena/store.ts` TTL, `app/api/athena/start/route.ts` |
 
 ## Sandbox and Local Dev Caveats
 

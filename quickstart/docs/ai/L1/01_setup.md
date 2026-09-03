@@ -30,8 +30,25 @@ agora project doctor --deep
 
 - `NEXT_PUBLIC_AGORA_APP_ID`: Agora project App ID.
 - `NEXT_AGORA_APP_CERTIFICATE`: Agora App Certificate (server only).
+- `ATHENA_ALLOWED_ORIGINS`: comma-separated CORS allowlist. Optional locally,
+  required on deploy. See [08_security](08_security.md).
 
 The base `.env.local` contract contains only these Agora credentials. Agent behavior defaults live in code, and optional BYOK examples are documented later in the root README.
+
+## Load The Extension
+
+The backend on its own does nothing a user can see. After `pnpm run dev`:
+
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. **Load unpacked**, select `extension/` (one directory above this app).
+4. Click the Athena icon, paste a passage of at least 80 characters, start a viva.
+
+Reload the extension from that page after editing anything under `extension/`.
+The Next.js dev server hot-reloads on its own.
+
+The first viva opens a tab requesting the microphone, because Chrome grants that
+permission per origin and the side panel needs it on the extension's own origin.
 
 ## Primary Commands
 
@@ -42,6 +59,12 @@ pnpm run typecheck
 pnpm run verify:api
 pnpm run build
 pnpm run verify
+```
+
+The control-channel parser has its own suite, and it needs no Agora credentials:
+
+```bash
+node --import tsx scripts/athena-parse.test.ts    # 21 assertions
 ```
 
 ## Verification Safety
@@ -78,6 +101,10 @@ Requires env/project binding:
 | Transcript missing | RTM token capability missing | Token route implementation | Ensure `buildTokenWithRtm` remains unchanged |
 | `verify` fails at doctor | Project not bound | `agora project use` output | Re-bind project and rewrite `.env.local` |
 | Mic publishes but no agent response | Agent start failed | UI warning (`agentJoinError`) | Inspect `/api/invite-agent` response |
+| Athena reads JSON or the word "focus" out loud | `skipPatterns` not reaching the engine | TTS builder in `app/api/athena/start/route.ts` | Restore `skipPatterns: [5]` on `MiniMaxTTS` |
+| Chips never populate | Control payload dropped or malformed | Side panel console, which logs every parsed payload | Check the prompt still demands one object per turn |
+| `pnpm install` fails on `ERR_PNPM_IGNORED_BUILDS` | pnpm 11 | `pnpm --version` | Use pnpm 10 |
+| Extension requests fail with an opaque network error | Origin missing from `host_permissions` | `extension/manifest.json` | Add the origin there as well as in `extension/config.js` |
 
 ## Local-Only vs Deploy-Specific
 

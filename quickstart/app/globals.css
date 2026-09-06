@@ -206,22 +206,27 @@ body {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .athena-root {
-  --athena-bg: #0a0b10;
-  --athena-surface: #14151d;
-  --athena-surface-raised: #1c1e28;
-  --athena-border: #262835;
+  --athena-bg: #001408;
+  --athena-surface: #04190d;
+  --athena-surface-raised: #0c2415;
+  --athena-border: #24331b;
+  --athena-border-strong: #54660a;
 
-  --athena-text: #e8eaf0;
-  --athena-text-dim: #7d8299;
+  --athena-text: #e7ede5;
+  --athena-text-dim: #8b948a;
 
-  --athena-blue: #4d8dff;
-  --athena-blue-dim: rgba(77, 141, 255, 0.14);
+  --athena-accent: #ccff00;
+  --athena-accent-hover: #aadd00;
+  --athena-accent-ink: #001408;
+  --athena-accent-dim: rgba(204, 255, 0, 0.14);
 
   --athena-amber: #f5a623;
   --athena-amber-dim: rgba(245, 166, 35, 0.12);
 
-  --athena-success: #2fd07a;
-  --athena-success-dim: rgba(47, 208, 122, 0.12);
+  /* Teal-cyan rather than green: the lime accent already carries "active" and
+     "recovered", and two adjacent greens read as one state on a small chip. */
+  --athena-success: #2fd0c0;
+  --athena-success-dim: rgba(47, 208, 192, 0.12);
 
   --athena-danger: #ff5c5c;
   --athena-danger-dim: rgba(255, 92, 92, 0.12);
@@ -229,7 +234,7 @@ body {
   --athena-radius: 10px;
   --athena-radius-pill: 999px;
 
-  --athena-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+  --athena-font-mono: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
   color-scheme: dark;
@@ -328,9 +333,9 @@ body {
 }
 
 .athena-chip[data-status='active'] {
-  background: var(--athena-blue-dim);
-  color: var(--athena-blue);
-  border-color: rgba(77, 141, 255, 0.3);
+  background: var(--athena-accent-dim);
+  color: var(--athena-accent);
+  border-color: rgba(204, 255, 0, 0.3);
 }
 
 .athena-chip[data-status='active'] .athena-chip-dot {
@@ -355,7 +360,7 @@ body {
 .athena-chip[data-status='correct'] {
   background: var(--athena-success-dim);
   color: var(--athena-success);
-  border-color: rgba(47, 208, 122, 0.3);
+  border-color: rgba(47, 208, 192, 0.3);
 }
 
 .athena-chip-dot {
@@ -398,15 +403,15 @@ body {
 @keyframes athena-redeem {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(47, 208, 122, 0.55);
+    box-shadow: 0 0 0 0 rgba(47, 208, 192, 0.55);
   }
   35% {
     transform: scale(1.22);
-    box-shadow: 0 0 0 8px rgba(47, 208, 122, 0.35);
+    box-shadow: 0 0 0 8px rgba(47, 208, 192, 0.35);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 18px rgba(47, 208, 122, 0);
+    box-shadow: 0 0 0 18px rgba(47, 208, 192, 0);
   }
 }
 
@@ -421,8 +426,8 @@ body {
   place-items: center;
   background: radial-gradient(
     circle at 50% 45%,
-    rgba(77, 141, 255, 0.28),
-    rgba(77, 141, 255, 0.05) 62%,
+    rgba(204, 255, 0, 0.28),
+    rgba(204, 255, 0, 0.05) 62%,
     transparent 70%
   );
   transition: opacity 260ms ease, transform 260ms ease;
@@ -432,8 +437,8 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--athena-blue);
-  box-shadow: 0 0 22px rgba(77, 141, 255, 0.65);
+  background: var(--athena-accent);
+  box-shadow: 0 0 22px rgba(204, 255, 0, 0.65);
   transition: transform 260ms ease, background-color 260ms ease,
     box-shadow 260ms ease;
 }
@@ -442,7 +447,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 1px solid rgba(77, 141, 255, 0.35);
+  border: 1px solid rgba(204, 255, 0, 0.35);
 }
 
 /* Speaking: the glow ring breathes outward. */
@@ -461,7 +466,7 @@ body {
 
 .athena-orb[data-state='listening'] .athena-orb-core {
   transform: scale(0.82);
-  box-shadow: 0 0 10px rgba(77, 141, 255, 0.3);
+  box-shadow: 0 0 10px rgba(204, 255, 0, 0.3);
 }
 
 .athena-orb[data-state='thinking'] .athena-orb-core {

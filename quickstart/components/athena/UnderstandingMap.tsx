@@ -14,10 +14,10 @@ const STATUS_LABEL: Record<TopicStatus, string> = {
 /** Halo colour for the flip animation, matching the status moved to. */
 const FLIP_GLOW: Record<TopicStatus, string> = {
   unattempted: 'transparent',
-  active: 'rgba(77, 141, 255, 0.35)',
+  active: 'rgba(204, 255, 0, 0.35)',
   partial: 'rgba(245, 166, 35, 0.35)',
   wrong: 'rgba(245, 166, 35, 0.45)',
-  correct: 'rgba(47, 208, 122, 0.4)',
+  correct: 'rgba(47, 208, 192, 0.4)',
 };
 
 function Chip({ topic }: { topic: Topic }) {

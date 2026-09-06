@@ -668,7 +668,7 @@ export default function VivaSession({
                   style={{
                     color:
                       turn.role === 'athena'
-                        ? 'var(--athena-blue)'
+                        ? 'var(--athena-accent)'
                         : 'var(--athena-text-dim)',
                   }}
                 >
@@ -764,12 +764,12 @@ export default function VivaSession({
             disabled={!aiReady}
             placeholder="Or type your answer…"
             autoComplete="off"
-            className="athena-card min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[12px] text-[var(--athena-text)] placeholder:text-[var(--athena-text-dim)] focus:border-[var(--athena-blue)] focus:outline-none disabled:opacity-40"
+            className="athena-card min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[12px] text-[var(--athena-text)] placeholder:text-[var(--athena-text-dim)] focus:border-[var(--athena-accent)] focus:outline-none disabled:opacity-40"
           />
           <button
             type="submit"
             disabled={!aiReady || typed.trim().length === 0}
-            className="athena-card px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-blue)] disabled:opacity-40"
+            className="athena-card px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-accent)] disabled:opacity-40"
           >
             Send
           </button>
@@ -780,7 +780,7 @@ export default function VivaSession({
             type="button"
             onClick={handleMicToggle}
             aria-pressed={!micEnabled}
-            className="athena-card flex-1 px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-blue)]"
+            className="athena-card flex-1 px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-accent)]"
             style={{ color: micEnabled ? 'var(--athena-text)' : 'var(--athena-amber)' }}
           >
             {micEnabled ? 'Mute' : 'Unmute'}
@@ -789,7 +789,7 @@ export default function VivaSession({
             type="button"
             onClick={handleInterrupt}
             disabled={orb !== 'speaking'}
-            className="athena-card flex-1 px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-blue)] disabled:opacity-40"
+            className="athena-card flex-1 px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-accent)] disabled:opacity-40"
           >
             Cut in
           </button>

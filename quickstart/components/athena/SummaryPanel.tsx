@@ -28,7 +28,7 @@ const OUTCOME: Record<
   },
   recovered: {
     label: 'Recovered',
-    color: 'var(--athena-blue)',
+    color: 'var(--athena-accent)',
     glyph: '↻',
     note: 'right on the second pass, not yet solid',
   },
@@ -443,14 +443,14 @@ export function SummaryPanel({
         <a
           href={downloadUrl}
           download
-          className="athena-card px-3 py-2 text-center text-[12px] transition-colors hover:border-[var(--athena-blue)]"
+          className="athena-card px-3 py-2 text-center text-[12px] transition-colors hover:border-[var(--athena-accent)]"
         >
           Download summary (.md)
         </a>
         <button
           type="button"
           onClick={handleCopy}
-          className="athena-card px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-blue)]"
+          className="athena-card px-3 py-2 text-[12px] transition-colors hover:border-[var(--athena-accent)]"
         >
           {copied ? 'Copied' : 'Copy to clipboard'}
         </button>

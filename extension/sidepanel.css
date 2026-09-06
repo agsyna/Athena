@@ -1,17 +1,28 @@
 /* Side panel styles. Same tokens as the viva surface. */
 
 :root {
-  --bg: #0a0b10;
-  --surface: #14151d;
-  --surface-raised: #1c1e28;
-  --border: #262835;
-  --text: #e8eaf0;
-  --text-dim: #7d8299;
-  --blue: #4d8dff;
+  /* Kong's dark palette: a deep green-black ground with one loud lime accent.
+     --bg, --accent, --accent-hover, --border-strong, --text and --accent-ink
+     are Kong's own token values; the two lifted surfaces and --border are
+     interpolated from them, because a dense side panel needs more separation
+     than a marketing page does. */
+  --bg: #001408;
+  --surface: #04190d;
+  --surface-raised: #0c2415;
+  --border: #24331b;
+  --border-strong: #54660a;
+  --text: #e7ede5;
+  --text-dim: #8b948a;
+  --accent: #ccff00;
+  --accent-hover: #aadd00;
+  --accent-ink: #001408;
   --amber: #f5a623;
-  --success: #2fd07a;
+  /* Shifted from green to teal-cyan. Kong's lime already carries "active" and
+     "recovered", and at chip size a green and a lime read as the same state. */
+  --success: #2fd0c0;
   --danger: #ff5c5c;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "Roboto Mono", "Fira Code", ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, Consolas, monospace;
 }
 
 * {
@@ -103,7 +114,7 @@ body {
 
 .passage:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .row {
@@ -128,7 +139,7 @@ body {
   padding: 0;
   font-family: inherit;
   font-size: 11px;
-  color: var(--blue);
+  color: var(--accent);
   background: none;
   border: 0;
   cursor: pointer;
@@ -146,8 +157,8 @@ body {
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: #08090d;
-  background: var(--blue);
+  color: var(--accent-ink);
+  background: var(--accent);
   border: 0;
   border-radius: 10px;
   cursor: pointer;
@@ -227,7 +238,7 @@ body {
 }
 
 .button:hover {
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .button[hidden] {
@@ -252,8 +263,8 @@ body {
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 45%,
-    rgba(77, 141, 255, 0.3),
-    rgba(77, 141, 255, 0.05) 62%,
+    rgba(204, 255, 0, 0.3),
+    rgba(204, 255, 0, 0.05) 62%,
     transparent 70%
   );
   position: relative;
@@ -267,8 +278,8 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--blue);
-  box-shadow: 0 0 16px rgba(77, 141, 255, 0.6);
+  background: var(--accent);
+  box-shadow: 0 0 16px rgba(204, 255, 0, 0.6);
   animation: pulse 2.4s ease-in-out infinite;
 }
 
@@ -318,7 +329,7 @@ body {
 
 .chip-button:hover {
   color: var(--text);
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 /* Topics still needing work. Amber, not red: it's a nudge, not an error. */
@@ -327,7 +338,7 @@ body {
   padding: 1px 4px;
   font-size: 9px;
   text-align: center;
-  color: #08090d;
+  color: var(--accent-ink);
   background: var(--amber);
   border-radius: 999px;
 }
@@ -366,7 +377,7 @@ body {
 
 .select:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .filters {
@@ -395,7 +406,7 @@ body {
 .filter[aria-pressed="true"] {
   color: var(--text);
   background: var(--surface-raised);
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .topics {
@@ -425,17 +436,17 @@ body {
 }
 
 .topic:hover {
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .topic.is-selected {
-  border-color: var(--blue);
+  border-color: var(--accent);
   background: var(--surface-raised);
 }
 
 .topic input {
   margin: 2px 0 0;
-  accent-color: var(--blue);
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -534,7 +545,7 @@ body {
 
 #viva-orb[data-state="listening"]::after {
   background: var(--success);
-  box-shadow: 0 0 16px rgba(47, 208, 122, 0.6);
+  box-shadow: 0 0 16px rgba(47, 208, 192, 0.6);
 }
 
 #viva-orb[data-state="thinking"]::after {
@@ -591,12 +602,12 @@ body {
 }
 
 .chip[data-status="active"] {
-  color: var(--blue);
-  background: rgba(77, 141, 255, 0.14);
-  border-color: var(--blue);
+  color: var(--accent);
+  background: rgba(204, 255, 0, 0.14);
+  border-color: var(--accent);
 }
 .chip[data-status="active"] .chip-dot {
-  background: var(--blue);
+  background: var(--accent);
 }
 
 .chip[data-status="partial"] .chip-dot,
@@ -615,7 +626,7 @@ body {
 }
 .chip[data-status="correct"] {
   color: var(--success);
-  background: rgba(47, 208, 122, 0.12);
+  background: rgba(47, 208, 192, 0.12);
   border-color: var(--success);
 }
 
@@ -627,11 +638,11 @@ body {
 @keyframes redeem {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(47, 208, 122, 0.5);
+    box-shadow: 0 0 0 0 rgba(47, 208, 192, 0.5);
   }
   40% {
     transform: scale(1.08);
-    box-shadow: 0 0 0 7px rgba(47, 208, 122, 0);
+    box-shadow: 0 0 0 7px rgba(47, 208, 192, 0);
   }
   100% {
     transform: scale(1);
@@ -734,7 +745,7 @@ body {
 
 .typed:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .button.is-compact {
@@ -788,7 +799,7 @@ body {
   min-width: 88px;
   padding: 8px 10px;
   text-align: center;
-  background: rgba(20, 21, 29, 0.94);
+  background: rgba(4, 25, 13, 0.94);
   border: 1px solid var(--border);
   border-radius: 8px;
   transform: translate(-50%, -50%);
@@ -842,7 +853,7 @@ body {
 }
 
 .summary-bubble[data-outcome="strong"] {
-  border-color: rgba(47, 208, 122, 0.75);
+  border-color: rgba(47, 208, 192, 0.75);
 }
 
 .summary-bubble[data-outcome="strong"]::before {
@@ -850,11 +861,11 @@ body {
 }
 
 .summary-bubble[data-outcome="recovered"] {
-  border-color: rgba(77, 141, 255, 0.75);
+  border-color: rgba(204, 255, 0, 0.75);
 }
 
 .summary-bubble[data-outcome="recovered"]::before {
-  background: var(--blue);
+  background: var(--accent);
 }
 
 .summary-bubble[data-outcome="shaky"],
@@ -883,7 +894,7 @@ body {
   top: 7px;
   right: 8px;
   font-size: 10px;
-  color: var(--blue);
+  color: var(--accent);
 }
 
 .summary-focus {

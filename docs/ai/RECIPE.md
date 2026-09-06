@@ -3,7 +3,7 @@
 **Highlight what you don't understand and just ask. She has already read the
 page you're on.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/agsyna/Athena/blob/main/LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](https://nodejs.org/)
 [![Chrome MV3](https://img.shields.io/badge/chrome-MV3-4285F4)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Agora ConvoAI](https://img.shields.io/badge/Agora-Conversational%20AI-099DFD)](https://docs.agora.io/en/conversational-ai/overview/product-overview)

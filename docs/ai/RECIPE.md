@@ -8,7 +8,7 @@ page you're on.**
 [![Chrome MV3](https://img.shields.io/badge/chrome-MV3-4285F4)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Agora ConvoAI](https://img.shields.io/badge/Agora-Conversational%20AI-099DFD)](https://docs.agora.io/en/conversational-ai/overview/product-overview)
 
-![Athena examining a passage, with the understanding map filling in as the student answers](https://raw.githubusercontent.com/agsyna/Athena/main/docs/assets/demo.gif)
+![](https://raw.githubusercontent.com/agsyna/Athena/main/docs/assets/logo-128.png)
 
 > **Copyable prompt for coding agents**
 >
@@ -23,6 +23,12 @@ page you're on.**
 > aloud.
 
 ---
+
+## See it first
+
+Recordings across several scenarios: [Drive folder](https://drive.google.com/drive/folders/1TiKVYXx3gvgkIWhWGJSrsC7nUsrvVWEy?usp=sharing). The live
+understanding map is the part worth watching, and it is the part prose is worst
+at conveying.
 
 ## What you build
 

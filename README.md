@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="" width="112">
+</p>
+
 <h1 align="center">Athena</h1>
 
 <p align="center">
@@ -10,10 +14,6 @@
   <a href="https://nodejs.org/"><img alt="Node 22+" src="https://img.shields.io/badge/node-%3E%3D22-339933"></a>
   <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img alt="Chrome MV3" src="https://img.shields.io/badge/chrome-MV3-4285F4"></a>
   <a href="https://docs.agora.io/en/conversational-ai/overview/product-overview"><img alt="Agora Conversational AI" src="https://img.shields.io/badge/Agora-Conversational%20AI-099DFD"></a>
-</p>
-
-<p align="center">
-  <img src="docs/assets/demo.gif" alt="Athena examining a passage, with the understanding map filling in as the student answers" width="820">
 </p>
 
 ---
@@ -37,6 +37,15 @@ Engine](https://docs.agora.io/en/conversational-ai/overview/product-overview).
 
 > **Want to build this?** [`docs/ai/RECIPE.md`](docs/ai/RECIPE.md) is the full
 > recipe, including the one trick here that is genuinely worth stealing.
+
+## Demos
+
+Recordings of Athena handling a few different scenarios live in
+[this Drive folder][demos]. Worth watching one before reading on: the
+understanding map filling in while she talks is the part prose is worst at
+conveying.
+
+[demos]: https://drive.google.com/drive/folders/1TiKVYXx3gvgkIWhWGJSrsC7nUsrvVWEy?usp=sharing
 
 ## What else it does
 

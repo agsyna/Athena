@@ -12,6 +12,10 @@
   <a href="https://docs.agora.io/en/conversational-ai/overview/product-overview"><img alt="Agora Conversational AI" src="https://img.shields.io/badge/Agora-Conversational%20AI-099DFD"></a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="Athena examining a passage, with the understanding map filling in as the student answers" width="820">
+</p>
+
 ---
 
 Whenever you're reading something online and come across a word, line, or

@@ -8,6 +8,8 @@ page you're on.**
 [![Chrome MV3](https://img.shields.io/badge/chrome-MV3-4285F4)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Agora ConvoAI](https://img.shields.io/badge/Agora-Conversational%20AI-099DFD)](https://docs.agora.io/en/conversational-ai/overview/product-overview)
 
+![Athena examining a passage, with the understanding map filling in as the student answers](https://raw.githubusercontent.com/agsyna/Athena/main/docs/assets/demo.gif)
+
 > **Copyable prompt for coding agents**
 >
 > Build and run the Athena recipe. Read `docs/ai/RECIPE.md` and
